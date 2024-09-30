@@ -7,7 +7,7 @@ A Loan Borrow Marketplace simulation where agents (lenders and borrowers) intera
 1. Clone the repository:
    ```bash
    git clone https://github.com/sshivaditya2019/LoanBorrow.git
-   cd loan-borrow-marketplace
+   cd LoanBorrow
    ```
 2. Install the dependencies:
    ```bash
