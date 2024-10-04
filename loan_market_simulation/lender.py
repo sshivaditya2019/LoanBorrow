@@ -187,7 +187,7 @@ class Lender:
 
         # Q-Learning algorithm 
         # Explain: The Q-Learning algorithm is used to update the Q-Values of the DQN model.
-        #Here, the self.policy_net is used to predict the Q-Values for the state-action pairs, and then gathered
+        # Here, the self.policy_net is used to predict the Q-Values for the state-action pairs, and then gathered
         # So state_action_values would look like this: [[Q-Value for action 1], [Q-Value for action 2], ...]
         # Similarly, the self.target_net is used to predict the Q-Values for the next state, and then the maximum Q-Value is taken.
         # So next_state_values would look like this: [Max Q-Value for next state]
