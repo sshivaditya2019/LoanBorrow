@@ -31,6 +31,8 @@ class Visualization:
 
     def draw_statistics(self, env):
         stats = [
+            f"Stock Index: {env.stock_index:.2f}",
+            f"Employment Stability: {env.state['employment_stability']:.2f}",
             f"Time step: {env.time_step}",
             f"Avg credit score: {env.state['avg_credit_score']:.2f}",
             f"Avg income: ${env.state['avg_income']:.2f}",

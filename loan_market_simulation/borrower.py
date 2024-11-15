@@ -69,6 +69,8 @@ class Borrower:
         self.eps_decay = 200
         self.steps_done = 0
 
+        self.employment_stability = np.random.uniform(0.5, 1.0)
+
     def can_borrow(self):
         return len(self.loans) < 3 and self.debt_to_income_ratio() < 0.6  # Increased from 0.5
 
@@ -119,6 +121,9 @@ class Borrower:
             literacy_factor = np.random.random() * self.financial_literacy
             decision = decision and (affordability > 0.7 or (affordability > 0.5 and risk_factor > 0.5 and literacy_factor > 0.5))
 
+        stability_factor = self.employment_stability * 0.2
+        decision = decision and (stability_factor > 0.7 or (affordability > 0.5 and risk_factor > 0.5))
+        
         return decision
 
     def calculate_affordability(self, loan):

@@ -14,6 +14,11 @@ class LoanMarketEnvironment:
         self.state = self.get_state()
         self.best_values = best_values
 
+        self.stock_index = np.random.normal(1000, 50)  
+        
+    def update_stock_index(self):
+        self.stock_index += np.random.normal(0, 5)  
+        
     def get_state(self):
         return {
             'avg_credit_score': np.mean([b.credit_score for b in self.borrowers]),
