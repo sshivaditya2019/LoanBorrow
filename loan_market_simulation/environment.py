@@ -11,10 +11,11 @@ class LoanMarketEnvironment:
         self.cycle_duration = 0 # Duration of the current economic cycle
         self.max_cycle_duration = 60  # 5 years
         self.min_interest_rate = 0.01  # 1% minimum interest rate
+        self.stock_index = np.random.normal(1000, 50)  
+        self.employment_stability = np.random.uniform(0.5, 1.0)
         self.state = self.get_state() 
         self.best_values = best_values # Store the best values for each feature
 
-        self.stock_index = np.random.normal(1000, 50)  
         
     def update_stock_index(self):
         self.stock_index += np.random.normal(0, 5)  
@@ -29,7 +30,10 @@ class LoanMarketEnvironment:
             'avg_interest_rate': self.get_avg_interest_rate(),
             'market_liquidity': self.get_market_liquidity(),
             'economic_cycle': self.economic_cycle,
-            'time_step': self.time_step
+            'time_step': self.time_step,
+            'stock_index': self.stock_index,
+            'employment_stability': self.employment_stability
+
         }
 
     def get_default_rate(self):
