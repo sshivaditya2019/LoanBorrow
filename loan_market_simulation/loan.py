@@ -61,7 +61,7 @@ class Loan:
         # Value is the remaining balance of the loan if the loan is not defaulted
         if self.is_defaulted():
             # If the loan is defaulted, the value is 50% of the remaining balance (Always)
-            # TODO: ANDREI NEEDS TO UNDERSTAND WHAT THIS IS VS. THE RECOVERY VALUE IN LENDER
+            # TODO: ANDREI NEEDS TO UNDERSTAND WHAT THIS IS VS. THE RECOVERY VALUE IN LENDER.PY
             return self.balance * 0.5
         else:
             remaining_payments = self.term - self.payments_made

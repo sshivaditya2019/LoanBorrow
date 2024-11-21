@@ -79,8 +79,13 @@ class Borrower:
             self.income = np.random.randint(20000, 150000)
             self.debt = np.random.randint(0, 100000)
             self.credit_score = self.calculate_init_credit_score()
-            # calculated in month. Yun added. Since in reality length of credit history takes up 15% of credit score
-            self.credit_length = 6
+
+        # Calculated in months. Yun added. Since in reality length of credit history takes up 15% of credit score
+        self.credit_length = 6
+
+        # Borrower has never defaulted. If the borrower misses payments 3x, then they have officially defaulted.
+        self.missed_payment = 0
+        self.defaulted = False
 
         self.loans = []
         self.risk_tolerance = np.random.uniform(0.1, 0.9)
@@ -279,6 +284,8 @@ class Borrower:
         self.debt = np.random.randint(0, 100000)
         self.income = np.random.randint(20000, 150000)
         self.credit_score = self.calculate_init_credit_score()
+        # Calculated in months. Yun added. Since in reality length of credit history takes up 15% of credit score
+        self.credit_length = 6
 
     def update_target_network(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
@@ -287,18 +294,18 @@ class Borrower:
     def update_credit_length(self, term):
         self.credit_length += term
 
-    def update_credit(self, length, debt_amount, default_times):
-        if (self.default_times == 0):
+    def update_credit(self, length, debt_amount):
+        if (self.missed_payment == 0):
             self.improve_credit_score(1)
-        if (self.default_times == 3):
-            self.credit_score.append(450)
-        if (self.default_times == 1):
+        elif (self.missed_payment == 1):
             self.improve_credit_score(-50)
-        if (self.default_times == 2):
+        elif (self.missed_payment == 2):
             self.improve_credit_score(-100)
+        elif (self.missed_payment == 3):
+            self.credit_score = 450
 
     def update_default_count(self):
         # TODO:
-        # Every time a borrower cannot make the monthly payment, default_count/default_times should increment by one (i.e.: you missed ap ayment)
+        # Every time a borrower cannot make the monthly payment, default_count should increment by one (i.e.: you missed ap ayment)
         # If default_count == 3, then you have officially defaulted and the lender needs to recover the amount.
         pass
