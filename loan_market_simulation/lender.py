@@ -137,6 +137,10 @@ class Lender:
         # Term is calculated by taking the action item and dividing by 50 to get the term index, followed by multiplying by 12 to get the term.
         term = ((action_item // 50) % 3) * 12 + 12
 
+        #Using stock indices to influence loan interest rates
+        stock_influence = (state['stock_index'] - 1000) * 0.0001
+        interest_rate += stock_influence
+        
         return interest_rate, loan_amount, term
 
     def assess_loan(self, loan, borrower):
