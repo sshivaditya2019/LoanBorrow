@@ -99,13 +99,13 @@ class LoanMarketEnvironment:
                     interest_rate, loan_amount, term = offer
                     loan = Loan(lender, borrower, loan_amount, interest_rate, term) # Create a loan object
                     
-                if lender.assess_loan(loan, borrower): # Check if the lender can grant the loan
+                    if lender.assess_loan(loan, borrower): # Check if the lender can grant the loan
                         decision = borrower.evaluate_loan(loan, self.state) # Evaluate the loan offer
                         
                         if decision:
                             if borrower.apply_for_loan(loan) and lender.grant_loan(loan): # Apply for the loan and grant it
                                 self.loans.append(loan)
-                                # In this cause, the rewards are the loan amount
+                                # In this case, the rewards are the loan amount
                                 # So borrower rewards are positive and lender rewards are negative
                                 # This is to encourage borrowers to take loans and lenders to grant them 
                                 # The goal is the maximize the total loan amount for the borrowers

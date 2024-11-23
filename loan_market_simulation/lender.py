@@ -145,7 +145,7 @@ class Lender:
 
     def assess_loan(self, loan, borrower):
         # Asses the creditworthiness of the borrower
-        credit_score_factor = (borrower.credit_score - 300) / 550
+        credit_score_factor = (borrower.credit_score - 300) / 550 # TODO: Modify this to be more realistic.
         dti_factor = 1 - borrower.debt_to_income_ratio() #Debt to income ratio (important factor in loan assessment)
         # Loan amount factor is calculated by taking the loan amount and dividing by the capital of the lender.
         loan_amount_factor = 1 - (loan.amount / self.capital)
