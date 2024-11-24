@@ -20,7 +20,7 @@ class Loan:
         self.payments_made = 0
         self.missed_payments = 0
         self.is_active = True
-        self.total_interest_paid = 0
+        self.total_interest_paid = 0 
 
     def monthly_payment(self):
         # Monthly payment calculation uses compound interest formula
