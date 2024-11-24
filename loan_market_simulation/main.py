@@ -66,7 +66,7 @@ def main(use_best_values=False):
 
     # All the lenders start with $1,000,000
     lenders = [
-        Lender(i, initial_capital=1000000, risk_tolerance=np.random.uniform(0.1, 0.9), best_values=best_values)
+        Lender(i, initial_capital=1_000_000, risk_tolerance=np.random.uniform(0.1, 0.9), best_values=best_values)
         for i in range(num_lenders)
     ]
 
