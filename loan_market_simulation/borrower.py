@@ -66,13 +66,17 @@ class Borrower:
             self.income = np.random.randint(20000, 150000)
             self.debt = np.random.randint(0, 100000)
         
+        self.inflation_rate = np.random.uniform(0.01, 0.03)
+        self.gdp_growth = np.random.uniform(0.02, 0.04)
+        self.unemployment_rate = np.random.uniform(0.03, 0.06)
+        
         self.loans = []
         self.risk_tolerance = np.random.uniform(0.1, 0.9)
         self.financial_literacy = np.random.uniform(0.1, 0.9)
 
         # RL setup
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.input_size = 14  # 14 features in the state (Features of the borrower and market)
+        self.input_size = 17  # 14 features in the state (Features of the borrower and market)
         self.output_size = 2 # 0: Reject, 1: Accept
         self.policy_net = DQN(self.input_size, self.output_size).to(self.device)
         self.target_net = DQN(self.input_size, self.output_size).to(self.device) 
@@ -111,7 +115,10 @@ class Borrower:
             state['market_liquidity'],
             loan_offer[0],
             loan_offer[1] / 100000,
-            loan_offer[2] / 60 
+            loan_offer[2] / 60,
+            self.inflation_rate,
+            self.gdp_growth,
+            self.unemployment_rate 
         ], dtype=torch.float32, device=self.device).unsqueeze(0)
 
     def evaluate_loan(self, loan, market_state):
@@ -144,7 +151,15 @@ class Borrower:
             affordability = self.calculate_affordability(loan) # Affordability of the borrower
             risk_factor = np.random.random() * self.risk_tolerance # Risk tolerance of the borrower
             literacy_factor = np.random.random() * self.financial_literacy # Financial literacy of the borrower 
-            decision = decision and (affordability > 0.7 or (affordability > 0.5 and risk_factor > 0.5 and literacy_factor > 0.5)) #Could be simplified
+            economic_factor = (
+                (1 - self.unemployment_rate) +
+                (self.gdp_growth - self.inflation_rate)
+            ) / 2 
+            # decision = decision and (affordability > 0.7 or (affordability > 0.5 and risk_factor > 0.5 and literacy_factor > 0.5)) #Could be simplified
+            decision = decision and (
+                (affordability > 0.7 and economic_factor > 0.5) or
+                (affordability > 0.5 and risk_factor > 0.5 and literacy_factor > 0.5)
+            )
 
         return decision
 

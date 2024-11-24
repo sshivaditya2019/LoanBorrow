@@ -10,9 +10,12 @@ class LoanMarketEnvironment:
         self.economic_cycle = 0  # 0: neutral, 1: boom, -1: recession
         self.cycle_duration = 0 # Duration of the current economic cycle
         self.max_cycle_duration = 60  # 5 years
-        self.min_interest_rate = 0.01  # 1% minimum interest rate
-        self.state = self.get_state() 
-        self.best_values = best_values # Store the best values for each feature
+        self.min_interest_rate = 0.01  # 1% minimum interest rate 
+        self.best_values = best_values # Store the best values for each feature,
+        self.inflation_rate = np.random.uniform(0.01, 0.03)  # 1-3% initial inflation
+        self.gdp_growth = np.random.uniform(0.02, 0.04)  # 2-4% initial GDP growth
+        self.unemployment_rate = np.random.uniform(0.03, 0.06)
+        self.state = self.get_state()
 
     def get_state(self):
         return {
@@ -24,7 +27,10 @@ class LoanMarketEnvironment:
             'avg_interest_rate': self.get_avg_interest_rate(),
             'market_liquidity': self.get_market_liquidity(),
             'economic_cycle': self.economic_cycle,
-            'time_step': self.time_step
+            'time_step': self.time_step,
+            'inflation_rate': self.inflation_rate,
+            'gdp_growth': self.gdp_growth,
+            'unemployment_rate': self.unemployment_rate,
         }
 
     def get_default_rate(self):
@@ -57,13 +63,26 @@ class LoanMarketEnvironment:
     def apply_economic_effects(self):
         # Apply economic effects on borrowers
         # By increasing or decreasing their income and credit score
+        # for borrower in self.borrowers:
+        #     if self.economic_cycle == 1:  # boom
+        #         borrower.income *= 1.01
+        #         borrower.improve_credit_score(1)
+        #     elif self.economic_cycle == -1:  # recession
+        #         borrower.income *= 0.99
+        #         borrower.improve_credit_score(-1)
+
+        if self.economic_cycle == 1:  # boom
+            self.gdp_growth = min(0.08, self.gdp_growth * 1.05)
+            self.unemployment_rate = max(0.03, self.unemployment_rate * 0.95)
+            self.inflation_rate *= 1.02
+        elif self.economic_cycle == -1:  # recession
+            self.gdp_growth = max(-0.02, self.gdp_growth * 0.95)
+            self.unemployment_rate = min(0.12, self.unemployment_rate * 1.05)
+            self.inflation_rate *= 0.98
+        
         for borrower in self.borrowers:
-            if self.economic_cycle == 1:  # boom
-                borrower.income *= 1.01
-                borrower.improve_credit_score(1)
-            elif self.economic_cycle == -1:  # recession
-                borrower.income *= 0.99
-                borrower.improve_credit_score(-1)
+            borrower.income *= (1 + self.gdp_growth) * (1 + self.inflation_rate)
+            borrower.improve_credit_score(-5 if np.random.random() < self.unemployment_rate else 1)
 
     def step(self):
         # A single step in the simulation
@@ -90,13 +109,13 @@ class LoanMarketEnvironment:
                     interest_rate, loan_amount, term = offer
                     loan = Loan(lender, borrower, loan_amount, interest_rate, term) # Create a loan object
                     
-                if lender.assess_loan(loan, borrower): # Check if the lender can grant the loan
+                    if lender.assess_loan(loan, borrower, self.state): # Check if the lender can grant the loan
                         decision = borrower.evaluate_loan(loan, self.state) # Evaluate the loan offer
                         
                         if decision:
                             if borrower.apply_for_loan(loan) and lender.grant_loan(loan): # Apply for the loan and grant it
                                 self.loans.append(loan)
-                                # In this cause, the rewards are the loan amount
+                                # In this case, the rewards are the loan amount
                                 # So borrower rewards are positive and lender rewards are negative
                                 # This is to encourage borrowers to take loans and lenders to grant them 
                                 # The goal is the maximize the total loan amount for the borrowers
@@ -118,7 +137,7 @@ class LoanMarketEnvironment:
                 # By the amount of the loan that was not recovered
                 recovery = loan.current_value()
                 lender_rewards[loan.lender.id] -= (loan.balance - recovery)
-                loan.lender.recover_loan(loan)
+                loan.lender.recover_loan(loan, self.state)
                 self.loans.remove(loan)
                 print(f"Loan defaulted: Lender {loan.lender.id}, Borrower {loan.borrower.id}, Amount: {loan.amount:.2f}")
 

@@ -58,7 +58,7 @@ class Lender:
             self.optimal_interest_rate = None
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.input_size = 10 # 10 features in the state (Features of the lender and market)
+        self.input_size = 13 # 10 features in the state (Features of the lender and market)
         self.output_size = 20 # 20 loan products
         self.policy_net = DQN(self.input_size, self.output_size).to(self.device) # DQN model for the lender
         self.target_net = DQN(self.input_size, self.output_size).to(self.device) # Target DQN model for the lender
@@ -86,7 +86,10 @@ class Lender:
             state['market_liquidity'],
             self.capital / self.initial_capital,
             self.risk_tolerance,
-            len(self.loans) / 100
+            len(self.loans) / 100,
+            state['inflation_rate'] / 0.1,
+            state['gdp_growth'] / 0.1, 
+            state['unemployment_rate'],
         ], dtype=torch.float32, device=self.device).unsqueeze(0)
 
     def get_action(self, state):
@@ -139,18 +142,38 @@ class Lender:
 
         return interest_rate, loan_amount, term
 
-    def assess_loan(self, loan, borrower):
+    def assess_loan(self, loan, borrower, state):
         # Asses the creditworthiness of the borrower
-        credit_score_factor = (borrower.credit_score - 300) / 550
+        credit_score_factor = (borrower.credit_score - 300) / 550 # TODO: Modify this to be more realistic.
         dti_factor = 1 - borrower.debt_to_income_ratio() #Debt to income ratio (important factor in loan assessment)
         # Loan amount factor is calculated by taking the loan amount and dividing by the capital of the lender.
         loan_amount_factor = 1 - (loan.amount / self.capital)
+
+        adjusted_risk_tolerance = self.adjust_risk_tolerance(state)
+
+        
         # Many banks use loan scoring models to assess the creditworthiness of borrowers.
         # This is a very simplified version of a loan scoring model.
         # But, complex loan scoring models can take into account many more factors like employment history, loan purpose, etc.
-        loan_score = (credit_score_factor * 0.3 + dti_factor * 0.3 + loan_amount_factor * 0.4) * (self.risk_tolerance + 0.2)
+        # loan_score = (credit_score_factor * 0.3 + dti_factor * 0.3 + loan_amount_factor * 0.4) * (self.risk_tolerance + 0.2)
+        loan_score = (credit_score_factor * 0.3 + dti_factor * 0.3 + loan_amount_factor * 0.4) * (adjusted_risk_tolerance + 0.2)
         # The loan is granted if the loan score is greater than a random number between 0 and 1 (Mood of the lender ? Randomness)
         return np.random.random() < loan_score
+
+    def adjust_risk_tolerance(self, state):
+        # Adjust risk tolerance based on economic conditions
+        base_tolerance = self.risk_tolerance
+        
+        # Reduce risk tolerance in poor economic conditions
+        if state['economic_cycle'] == -1:
+            base_tolerance *= 0.8
+        elif state['economic_cycle'] == 1:
+            base_tolerance *= 1.2
+        
+        # Adjust for market liquidity
+        base_tolerance *= (0.8 + state['market_liquidity'] * 0.4)
+        
+        return np.clip(base_tolerance, 0.1, 1.0)
 
     def grant_loan(self, loan):
         # If the lender has enough capital, the loan is granted
@@ -160,11 +183,24 @@ class Lender:
             return True
         return False
 
-    def recover_loan(self, loan):
-        # In case of default, the lender recovers 50% of the loan amount (Always ?, not very realistic)
-        self.loans.remove(loan)
-        recovery = loan.balance * 0.5
+    # def recover_loan(self, loan):
+    #     # In case of default, the lender recovers 50% of the loan amount (Always ?, not very realistic)
+    #     self.loans.remove(loan)
+    #     recovery = loan.balance * 0.5
+    #     self.capital += recovery
+
+    def recover_loan(self, loan, state):
+        # Recovery rate varies based on economic conditions
+        base_recovery_rate = 0.5
+        
+        if state['economic_cycle'] == -1:
+            base_recovery_rate *= 0.8  # Lower recovery in recession
+        elif state['economic_cycle'] == 1:
+            base_recovery_rate *= 1.2  # Higher recovery in boom
+        
+        recovery = loan.balance * base_recovery_rate
         self.capital += recovery
+        self.loans.remove(loan)
 
     def update_state(self, state, action, reward, next_state):
         # Update the state of the lender and train the DQN
