@@ -185,9 +185,8 @@ class Lender:
         # Account for credit length or not
         if self.credit_length:
             loan_score = (credit_score_factor * 0.3 + dti_factor * 0.3 +
-                          loan_amount_factor * 0.25 + credit_length/360 * 0.15) * (self.risk_tolerance + 0.2)
-            print(
-                f"Borrower ID: {borrower.id} | Credit Length: {borrower.credit_length}")
+                          loan_amount_factor * 0.25 + credit_length/720 * 0.15) * (self.risk_tolerance + 0.2)
+            # print( f"Borrower ID: {borrower.id} | Credit Length: {borrower.credit_length}")
         else:
             loan_score = (credit_score_factor * 0.3 + dti_factor * 0.3 +
                           loan_amount_factor * 0.4) * (self.risk_tolerance + 0.2)

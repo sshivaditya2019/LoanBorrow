@@ -198,8 +198,11 @@ class Borrower:
         if self.income >= payment:
             self.income -= payment
             loan.amount -= payment
-            if self.credit_length != None:
-                self.update_credit_length(1)
+            # Only update credit length if they have a perfect history of paying back their loans
+            if self.credit_length != None and all(some_loan.missed_payments == 0 for some_loan in self.loans):
+                print(
+                    f"For BORROWER: {self.id}, CREDIT LENGTH UPDATED to: {self.credit_length}!!!")
+                self.update_credit_length(1/len(self.loans))
             if loan.amount <= 0:
                 self.loans.remove(loan)
                 self.improve_credit_score(10)
