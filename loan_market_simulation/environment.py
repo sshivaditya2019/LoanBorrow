@@ -15,6 +15,11 @@ class LoanMarketEnvironment:
         self.best_values = best_values # Store the best values for each feature
 
     def get_state(self):
+        # Get the current debts
+        for borrower in self.borrowers:
+            print("Income :", borrower.income, "Debt :", borrower.debt)
+        for borrower in self.borrowers:
+            print(f"Borrower {borrower.id} debt: {borrower.debt:.2f} load ids: {[loan.id for loan in borrower.loans]}")
         return {
             'avg_credit_score': np.mean([b.credit_score for b in self.borrowers]),
             'avg_income': np.mean([b.income for b in self.borrowers]),
@@ -62,8 +67,8 @@ class LoanMarketEnvironment:
                 borrower.income *= 1.01
                 borrower.improve_credit_score(1)
             elif self.economic_cycle == -1:  # recession
-                borrower.income *= 0.99
-                borrower.improve_credit_score(-1)
+                borrower.income *= 1
+                borrower.improve_credit_score(0)
 
     def step(self):
         # A single step in the simulation
@@ -82,7 +87,7 @@ class LoanMarketEnvironment:
                 interest_rate, loan_amount, term = action 
                 interest_rate = max(interest_rate, self.min_interest_rate)  # Enforce minimum interest rate
                 loan_offers.append((lender, (interest_rate, loan_amount, term))) # Add the loan offer to the list
-
+        print("Loan offers: ", loan_offers)
         # Borrowers evaluate loan offers
         for borrower in self.borrowers:
             if borrower.can_borrow(): # Only evaluate loan offers if the borrower can borrow
@@ -118,6 +123,8 @@ class LoanMarketEnvironment:
                 # By the amount of the loan that was not recovered
                 recovery = loan.current_value()
                 lender_rewards[loan.lender.id] -= (loan.balance - recovery)
+                # Penalize the borrower for the default
+                borrower_rewards[loan.borrower.id] -= ( loan.balance - recovery) * 1000
                 loan.lender.recover_loan(loan)
                 self.loans.remove(loan)
                 print(f"Loan defaulted: Lender {loan.lender.id}, Borrower {loan.borrower.id}, Amount: {loan.amount:.2f}")

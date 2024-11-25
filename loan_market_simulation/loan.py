@@ -5,6 +5,7 @@ import numpy as np
 class Loan:
     def __init__(self, lender, borrower, amount, interest_rate, term):
         self.lender = lender
+        self.id = np.random.randint(1000000)
         self.borrower = borrower
         self.amount = amount
         self.interest_rate = interest_rate
@@ -64,10 +65,10 @@ class Loan:
         
         dti_ratio = self.borrower.debt_to_income_ratio()
         payment_history = self.missed_payments / (self.payments_made + self.missed_payments + 1)
-        credit_score_factor = 1 - (self.borrower.credit_score - 300) / 550
+        credit_score_factor = 1 - (self.borrower.credit_score - 300) / 300
         term_factor = self.term / 60
         
-        risk_score = (dti_ratio * 0.3 + payment_history * 0.3 + credit_score_factor * 0.2 + term_factor * 0.2)
+        risk_score = (dti_ratio * 0.7 + payment_history * 0.1 + credit_score_factor * 0.1 + term_factor * 0.1)
         # Clamp the risk score between 0 and 1
         return min(risk_score, 1.0)
 

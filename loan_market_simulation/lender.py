@@ -29,8 +29,8 @@ class ReplayMemory:
 class DQN(nn.Module):
     def __init__(self, input_size, output_size):
         super(DQN, self).__init__()
-        self.fc1 = nn.Linear(input_size, 256)
-        self.fc2 = nn.Linear(256, 256)
+        self.fc1 = nn.Linear(input_size, 128)
+        self.fc2 = nn.Linear(128, 256)
         self.fc3 = nn.Linear(256, 128)
         self.fc4 = nn.Linear(128, output_size)
 
@@ -66,7 +66,7 @@ class Lender:
         self.target_net.eval()
 
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.0005) # Adam optimizer for the DQN model this is used to update the weights of the model, why? Because the DQN model is a neural network and the weights of the neural network need to be updated in order to learn the Q-Values.
-        self.memory = ReplayMemory(10000) # Replay memory for the lender, why 10000? Becuase this the number of experiences that the lender can store in the replay memory.
+        self.memory = ReplayMemory(30000) # Replay memory for the lender, why 10000? Becuase this the number of experiences that the lender can store in the replay memory.
         self.batch_size = 64
         self.gamma = 0.99 # Discount factor why? Because the discount factor is used to discount future rewards in the reinforcement learning algorithm.
         # Exploration means that the agent is exploring the environment to learn more about it. Exploitation means that the agent is exploiting the knowledge it has already gained to maximize its rewards.

@@ -60,7 +60,7 @@ def main(use_best_values=False):
     num_lenders = 5
     num_borrowers = 20 # Also be changed in the lender.py's for the DQN's output size
     num_episodes = 1
-    max_time_steps = 360
+    max_time_steps = 720
 
     best_values = load_best_values() if use_best_values else None
 
