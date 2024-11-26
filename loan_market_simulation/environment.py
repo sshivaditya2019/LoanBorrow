@@ -15,6 +15,59 @@ class LoanMarketEnvironment:
         self.best_values = best_values # Store the best values for each feature
         self.inflation = 0.04  # 4% annual inflation rate
 
+    def calculate_lender_reward(self, loan, is_default=False):
+        """Calculate reward for lender based on loan performance"""
+        if is_default:
+            # Penalize defaults heavily
+            return -loan.amount * 2
+        
+        # Immediate reward for giving out a loan
+        immediate_reward = loan.amount * 0.05
+        
+        # Calculate return on investment
+        interest_earned = loan.total_interest()
+        risk_adjusted_return = interest_earned * (1 - self.get_default_rate())
+        
+        # Reward for good risk assessment
+        credit_score_factor = (loan.borrower.credit_score - 300) / 550
+        dti_factor = 1 - loan.borrower.debt_to_income_ratio()
+        risk_assessment_bonus = loan.amount * 0.1 * (credit_score_factor + dti_factor) / 2
+        
+        return immediate_reward + risk_adjusted_return + risk_assessment_bonus
+
+    def calculate_borrower_reward(self, loan, is_default=False):
+        """Calculate reward for borrower based on loan terms and outcome"""
+        if is_default:
+            # Severe penalty for defaulting
+            return -loan.amount * 3
+        
+        # Immediate reward for getting a loan
+        immediate_reward = loan.amount * 0.1
+        
+        # Interest rate optimization (reward lower rates)
+        rate_factor = 1 - (loan.interest_rate - self.min_interest_rate) / (0.075 - self.min_interest_rate)
+        interest_reward = loan.amount * 0.2 * rate_factor
+        
+        # Financial health factors
+        credit_score_bonus = (loan.borrower.credit_score - 300) / 550 * loan.amount * 0.1
+        dti_ratio = loan.borrower.debt_to_income_ratio()
+        
+        # Penalize high DTI ratios exponentially
+        dti_penalty = -np.exp(max(0, dti_ratio - 0.4)) * loan.amount * 0.1
+        
+        # Affordability check
+        monthly_payment = loan.monthly_payment()
+        monthly_income = loan.borrower.income / 12
+        affordability_ratio = monthly_payment / monthly_income
+        
+        # Penalize taking loans that are too large relative to income
+        if affordability_ratio > 0.5:
+            affordability_penalty = -loan.amount * (affordability_ratio - 0.5) * 2
+        else:
+            affordability_penalty = 0
+        
+        return immediate_reward + interest_reward + credit_score_bonus + dti_penalty + affordability_penalty
+
     def get_state(self):
         # Get the current debts
         for borrower in self.borrowers:
@@ -97,6 +150,7 @@ class LoanMarketEnvironment:
             lender_rewards = {lender.id: 0 for lender in self.lenders}
         if borrower_rewards is None:
             borrower_rewards = {borrower.id: 0 for borrower in self.borrowers}
+        
         # Lenders make loan offers
         loan_offers = [] # List of all loan offers
         for lender in self.lenders:
@@ -106,6 +160,7 @@ class LoanMarketEnvironment:
                 interest_rate = max(interest_rate, self.min_interest_rate)  # Enforce minimum interest rate
                 loan_offers.append((lender, (interest_rate, loan_amount, term))) # Add the loan offer to the list
         print("Loan offers: ", loan_offers)
+        
         # Borrowers evaluate loan offers
         for borrower in self.borrowers:
             if borrower.can_borrow(): # Only evaluate loan offers if the borrower can borrow
@@ -119,41 +174,34 @@ class LoanMarketEnvironment:
                         if decision:
                             if borrower.apply_for_loan(loan) and lender.grant_loan(loan): # Apply for the loan and grant it
                                 self.loans.append(loan)
-                                # In this case, the rewards are the loan amount
-                                # So borrower rewards are positive and lender rewards are negative
-                                # This is to encourage borrowers to take loans and lenders to grant them 
-                                # The goal is the maximize the total loan amount for the borrowers
-                                # And minimuze the capital they have sitting idle for the lenders
-                                borrower_rewards[borrower.id] += loan_amount # Update rewards for the borrower
-                                lender_rewards[lender.id] += loan_amount # Update rewards for the lender
+                                # Calculate rewards based on loan terms and financial health
+                                borrower_rewards[borrower.id] += self.calculate_borrower_reward(loan)
+                                lender_rewards[lender.id] += self.calculate_lender_reward(loan)
                                 self.state['should_interest_rate_increase'] = 1
                                 print(f"Loan created: Lender {lender.id}, Borrower {borrower.id}, Amount: {loan_amount:.2f}, Interest: {interest_rate:.2%}, Term: {term}")
                         else:
                             self.state['should_interest_rate_increase'] = 0
-                            # If the borrower rejects the loan offer, penalize the lender
-                            lender_rewards[lender.id] -= 0.1 * loan_amount
+                            # Small penalty for rejected offers
+                            lender_rewards[lender.id] -= loan_amount * 0.01
 
         # Process existing loans
         for loan in self.loans[:]:
             if loan.make_payment():
-                # If the loan is paid, update the rewards for the borrower and lender
+                # Reward successful payments
                 payment = loan.monthly_payment()
-                borrower_rewards[loan.borrower.id] += payment
-                lender_rewards[loan.lender.id] += payment
+                interest_portion = payment * loan.interest_rate / 12
+                borrower_rewards[loan.borrower.id] += payment * 0.05  # Small reward for timely payment
+                lender_rewards[loan.lender.id] += interest_portion * 0.1  # Reward for earning interest
             elif loan.is_active == False and loan.is_defaulted() == False:
-                # If the loan is paid off, remove the loan
-                borrower_rewards[loan.borrower.id] += loan.amount * 1000
-                lender_rewards[loan.lender.id] += loan.amount * 1000
+                # Reward successful loan completion
+                borrower_rewards[loan.borrower.id] += self.calculate_borrower_reward(loan) * 2
+                lender_rewards[loan.lender.id] += self.calculate_lender_reward(loan) * 2
                 self.loans.remove(loan)
                 print(f"Loan paid off: Lender {loan.lender.id}, Borrower {loan.borrower.id}, Amount: {loan.amount:.2f}")
             elif loan.is_defaulted():
-                # If the loan is defaulted, recover the capital and remove the loan 
-                # The lender is penalized for the default
-                # By the amount of the loan that was not recovered
-                recovery = loan.current_value()
-                lender_rewards[loan.lender.id] -= (loan.balance - recovery)
-                # Penalize the borrower for the default
-                borrower_rewards[loan.borrower.id] -= ( loan.balance - recovery) * 1000
+                # Penalize defaults
+                borrower_rewards[loan.borrower.id] += self.calculate_borrower_reward(loan, True)
+                lender_rewards[loan.lender.id] += self.calculate_lender_reward(loan, True)
                 loan.lender.recover_loan(loan)
                 loan.borrower.recover_loan(loan)
                 self.loans.remove(loan)
@@ -161,16 +209,12 @@ class LoanMarketEnvironment:
             else:
                 print(f"Loan active: Lender {loan.lender.id}, Borrower {loan.borrower.id}, Amount: {loan.amount:.2f}, Balance: {loan.balance:.2f}")
 
-            
-
-
         # Update states and policies
         next_state = self.get_state()
         for lender in self.lenders:
             lender.update_state(self.state, lender.get_action(self.state), lender_rewards[lender.id], next_state)
         for borrower in self.borrowers:
             # Use a dummy loan offer when there's no actual loan to evaluate
-            # Increase the action space to include the dummy loan offer (Optional)
             dummy_loan_offer = (self.min_interest_rate, 0, 12)
             action = borrower.evaluate_loan(Loan(None, borrower, 0, self.min_interest_rate, 12), self.state)
             borrower.update_state(self.state, action, borrower_rewards[borrower.id], next_state, dummy_loan_offer)
