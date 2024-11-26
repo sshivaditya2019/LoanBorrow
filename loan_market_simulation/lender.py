@@ -47,10 +47,10 @@ class Lender:
         self.capital = self.initial_capital
         self.risk_tolerance = risk_tolerance if best_values is None else np.random.uniform(0.1, 0.9)
         self.loans = []
-        self.min_loan_amount = 1000 # Smallest loan amount
+        self.min_loan_amount = 10000 # Smallest loan amount
         self.max_loan_amount = 100000 # Largest loan amount
         self.min_interest_rate = 0.03
-        self.max_interest_rate = 0.09
+        self.max_interest_rate = 0.075
 
         if best_values and 'optimal_interest_rate' in best_values:
             self.optimal_interest_rate = best_values['optimal_interest_rate']
@@ -70,20 +70,23 @@ class Lender:
         self.batch_size = 64
         self.gamma = 0.99 # Discount factor why? Because the discount factor is used to discount future rewards in the reinforcement learning algorithm.
         # Exploration means that the agent is exploring the environment to learn more about it. Exploitation means that the agent is exploiting the knowledge it has already gained to maximize its rewards.
-        self.eps_start = 0.9 # Episilon start why? Because the DQN model uses an epsilon greedy policy to explore the environment. The epsilon greedy policy is used to balance exploration and exploitation in the reinforcement learning algorithm.
-        self.eps_end = 0.05 # Epsilon end why? Because the epsilon greedy policy is used to balance exploration and exploitation in the reinforcement learning algorithm.
-        self.eps_decay = 1000
+        self.eps_start = 0.9899 # Episilon start why? Because the DQN model uses an epsilon greedy policy to explore the environment. The epsilon greedy policy is used to balance exploration and exploitation in the reinforcement learning algorithm.
+        self.eps_end = 0.005 # Epsilon end why? Because the epsilon greedy policy is used to balance exploration and exploitation in the reinforcement learning algorithm.
+        self.eps_decay = 100000
         self.steps_done = 0
+    
+    def encode_economic_cycle(self, economic_cycle):
+        return hash(economic_cycle) % 1000
 
     def state_to_tensor(self, state):
         return torch.tensor([
             state['avg_credit_score'] / 850,
             state['avg_income'] / 150000,
             state['avg_debt'] / 100000,
-            state['num_loans'] / 1000,
             state['default_rate'],
             state['avg_interest_rate'],
-            state['market_liquidity'],
+            state['should_interest_rate_increase'],
+            self.encode_economic_cycle(state['economic_cycle']) / 1000,
             self.capital / self.initial_capital,
             self.risk_tolerance,
             len(self.loans) / 100
@@ -143,12 +146,15 @@ class Lender:
         # Asses the creditworthiness of the borrower
         credit_score_factor = (borrower.credit_score - 300) / 550 # TODO: Modify this to be more realistic.
         dti_factor = 1 - borrower.debt_to_income_ratio() #Debt to income ratio (important factor in loan assessment)
-        # Loan amount factor is calculated by taking the loan amount and dividing by the capital of the lender.
+        # # Loan amount factor is calculated by taking the loan amount and dividing by the capital of the lender.
+        # if self.capital == 0:
+        #     loan_score = float('-inf')
+        # else:
         loan_amount_factor = 1 - (loan.amount / self.capital)
+        loan_score = (credit_score_factor * 0.3 + dti_factor * 0.3 + loan_amount_factor * 0.4) * (self.risk_tolerance + 0.2)
         # Many banks use loan scoring models to assess the creditworthiness of borrowers.
         # This is a very simplified version of a loan scoring model.
         # But, complex loan scoring models can take into account many more factors like employment history, loan purpose, etc.
-        loan_score = (credit_score_factor * 0.3 + dti_factor * 0.3 + loan_amount_factor * 0.4) * (self.risk_tolerance + 0.2)
         # The loan is granted if the loan score is greater than a random number between 0 and 1 (Mood of the lender ? Randomness)
         return np.random.random() < loan_score
 

@@ -9,7 +9,7 @@ class Loan:
         self.borrower = borrower
         self.amount = amount
         self.interest_rate = interest_rate
-        self.term = term
+        self.term = 1
         self.balance = amount
         self.payments_made = 0
         self.missed_payments = 0 # Could be used to check credit worthiness of the borrower (Not used in the current implementation)
@@ -26,18 +26,26 @@ class Loan:
     def monthly_payment(self):
         # Monthly payment calculation uses compound interest formula
         r = self.interest_rate / 12
-        return (self.amount * r * (1 + r) ** self.term) / ((1 + r) ** self.term - 1)
+        mon =  self.amount * (1 + self.interest_rate * self.term)/12
+        # print("Monthly Payment: ", self.amount, self.interest_rate, self.term, mon)
+        return mon
 
     def make_payment(self):
         if self.is_active:
             payment = self.monthly_payment()
-            if self.borrower.make_payment(self):
+            if self.borrower.can_pay(self):
                 self.balance -= payment
                 self.payments_made += 1
+                self.lender.capital += payment
+                self.borrower.debt -= max(0, self.borrower.debt - payment)
+                self.borrower.annual_income -= max(0, self.borrower.annual_income - payment)
                 interest_portion = self.balance * (self.interest_rate / 12)
                 self.total_interest_paid += interest_portion
                 if self.balance <= 0:
+                    self.lender.loans.remove(self)
+                    self.borrower.loans.remove(self)
                     self.is_active = False
+                    return False
                 return True
             else:
                 self.missed_payments += 1

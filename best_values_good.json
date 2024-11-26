@@ -1,0 +1,11 @@
+{
+    "highest_credit_score": 740,
+    "lowest_debt": 0,
+    "highest_income": 327176.7320636987,
+    "highest_lender_capital": 960000.0,
+    "lowest_default_rate": 0.3728813559322034,
+    "optimal_interest_rate": 0.07359945346340485,
+    "optimal credit score": 740.0,
+    "optimal income": 156303.80117329827,
+    "optimal debt": 98500.0
+}

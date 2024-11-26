@@ -31,6 +31,7 @@ class Visualization:
 
     def draw_statistics(self, env):
         stats = [
+            f"Economic cycle: {env.economic_cycle}",
             f"Time step: {env.time_step}",
             f"Avg credit score: {env.state['avg_credit_score']:.2f}",
             f"Avg income: ${env.state['avg_income']:.2f}",

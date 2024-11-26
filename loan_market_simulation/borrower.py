@@ -64,17 +64,18 @@ class Borrower:
             self.income = int(best_values.get('highest_income', np.random.randint(20000, 150000)))
             self.debt = int(best_values.get('lowest_debt', np.random.randint(0, 100000)))
         else:
-            self.credit_score = 500
+            self.credit_score = 600
             self.income = 55000
             self.debt = 0
         
         self.loans = []
         self.risk_tolerance = np.random.uniform(0.1, 0.7)
         self.financial_literacy = np.random.uniform(0.5, 0.9)
+        self.annual_income = self.income
 
         # RL setup
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.input_size = 15  # 14 features in the state (Features of the borrower and market)
+        self.input_size = 14  # 14 features in the state (Features of the borrower and market)
         self.output_size = 2 # 0: Reject, 1: Accept
         self.policy_net = DQN(self.input_size, self.output_size).to(self.device)
         self.target_net = DQN(self.input_size, self.output_size).to(self.device) 
@@ -82,23 +83,26 @@ class Borrower:
         self.target_net.eval()
 
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.001)
-        self.memory = ReplayMemory(50000) # Memory capacity
+        self.memory = ReplayMemory(30000) # Memory capacity
         self.batch_size = 64 # Number of experiences to sample from memory
-        self.gamma = 0.99 #Discount factor
-        self.eps_start = 0.9 
-        self.eps_end = 0.05
-        self.eps_decay = 200
+        self.gamma = 0.8 #Discount factor
+        self.eps_start = 0.99 
+        self.eps_end = 0.1
+        self.eps_decay = 100000
         self.steps_done = 0
 
     def can_borrow(self):
         print("Checking if the borrower can borrow")
         # Allow up to 3 loans and a debt-to-income ratio of 0.6
-        return len(self.loans) < 3 and self.debt_to_income_ratio() < 0.6
+        return len(self.loans) <= 3 and self.debt_to_income_ratio() < 0.6
 
     def debt_to_income_ratio(self):
         # The monthly payment ratio to the income
         return sum(l.monthly_payment() for l in self.loans) / (self.income / 12) if self.income > 0 else 0
 
+    def encode_economic_cycle(self, economic_cycle):
+        # Return Hashed value of the economic cycle
+        return hash(economic_cycle) % 100
     
     def not_defaulted(self):
         # A borrower is defaulted if the debt to income ratio is greater than 0.6
@@ -107,21 +111,20 @@ class Borrower:
     def state_to_tensor(self, state, loan_offer):
         #Map the action space to a tensor
         return torch.tensor([
-            np.clip(self.credit_score / 850, 0, 1),
-            np.clip(self.income / 150000, 0, 1),
-            np.clip(self.debt / 100000, 0, 1),
-            len(self.loans) / 3,
+            self.credit_score / 850,
+            self.income / 150000,
+            self.debt / 100000,
+            len(self.loans),
             state['avg_credit_score'] / 850,
             state['avg_income'] / 150000,
             state['avg_debt'] / 100000,
-            state['num_loans'] / 1000,
             self.not_defaulted() * 1,
             state['default_rate'],
             state['avg_interest_rate'],
-            state['market_liquidity'],
+            self.encode_economic_cycle(state['economic_cycle']),
             loan_offer[0],
             loan_offer[1] / 100000,
-            loan_offer[2] / 60 
+            loan_offer[2] / 12
         ], dtype=torch.float32, device=self.device).unsqueeze(0)
 
     def evaluate_loan(self, loan, market_state):
@@ -166,24 +169,28 @@ class Borrower:
 
     def apply_for_loan(self, loan):
         # Apply for a loan and add it to the list of loans
-        print(f"Borrower {self.id} applied for a loan of ${loan.amount} at {loan.interest_rate}% interest")
+        print(f"Borrower {self.id} applied for a loan of ${loan.balance} at {loan.interest_rate}% interest")
         if self.can_borrow():
             self.loans.append(loan)
-            self.debt += loan.amount
+            self.debt += loan.balance
             return True
         return False
 
     def make_payment(self, loan):
         # Make monthly payment on a loan
         payment = loan.monthly_payment()
-        if self.income >= payment:
-            self.income -= payment
-            loan.amount -= payment
-            if loan.amount <= 0:
+        if (self.income//12) >= payment:
+            self.annual_income -= payment
+            loan.balance -= payment
+            if loan.balance <= 0:
                 self.loans.remove(loan)
                 self.improve_credit_score(10)
             return True
         return False
+    
+    def can_pay(self, loan):
+        # Check if the borrower can make the monthly payment
+        return (self.income//12) >= loan.monthly_payment()
 
     def improve_credit_score(self, points):
         # Improve the credit score of the borrower

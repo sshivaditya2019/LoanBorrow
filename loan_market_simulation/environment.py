@@ -10,9 +10,10 @@ class LoanMarketEnvironment:
         self.economic_cycle = 0  # 0: neutral, 1: boom, -1: recession
         self.cycle_duration = 0 # Duration of the current economic cycle
         self.max_cycle_duration = 60  # 5 years
-        self.min_interest_rate = 0.01  # 1% minimum interest rate
+        self.min_interest_rate = 0.03  # 1% minimum interest rate
         self.state = self.get_state() 
         self.best_values = best_values # Store the best values for each feature
+        self.inflation = 0.04  # 4% annual inflation rate
 
     def get_state(self):
         # Get the current debts
@@ -23,13 +24,14 @@ class LoanMarketEnvironment:
         return {
             'avg_credit_score': np.mean([b.credit_score for b in self.borrowers]),
             'avg_income': np.mean([b.income for b in self.borrowers]),
-            'avg_debt': np.mean([b.debt for b in self.borrowers]),
+            'avg_debt': np.mean([l.amount for l in self.loans]),
             'num_loans': len(self.loans),
             'default_rate': self.get_default_rate(),
             'avg_interest_rate': self.get_avg_interest_rate(),
             'market_liquidity': self.get_market_liquidity(),
             'economic_cycle': self.economic_cycle,
-            'time_step': self.time_step
+            'time_step': self.time_step,
+            'should_interest_rate_increase': 1
         }
 
     def get_default_rate(self):
@@ -64,11 +66,11 @@ class LoanMarketEnvironment:
         # By increasing or decreasing their income and credit score
         for borrower in self.borrowers:
             if self.economic_cycle == 1:  # boom
-                borrower.income *= 1.01
+                borrower.income *= 1.0 * (1 + (self.inflation)/12)
                 borrower.improve_credit_score(1)
             elif self.economic_cycle == -1:  # recession
-                borrower.income *= 1
-                borrower.improve_credit_score(0)
+                borrower.income *= 1.0 * (1 - (0.01/12))
+                borrower.improve_credit_score(-1)
 
     def step(self, lender_rewards=None, borrower_rewards=None):
         # A single step in the simulation
@@ -87,6 +89,8 @@ class LoanMarketEnvironment:
                 action = lender.get_action(self.state) # Get the action from the policy network
                 interest_rate, loan_amount, term = action 
                 interest_rate = max(interest_rate, self.min_interest_rate)  # Enforce minimum interest rate
+                if lender.max_interest_rate - interest_rate <= 0.02:
+                    lender_rewards[lender.id] -= 0.1 * loan_amount * 10000
                 loan_offers.append((lender, (interest_rate, loan_amount, term))) # Add the loan offer to the list
         print("Loan offers: ", loan_offers)
         # Borrowers evaluate loan offers
@@ -109,7 +113,12 @@ class LoanMarketEnvironment:
                                 # And minimuze the capital they have sitting idle for the lenders
                                 borrower_rewards[borrower.id] += loan_amount # Update rewards for the borrower
                                 lender_rewards[lender.id] += loan_amount # Update rewards for the lender
+                                self.state['should_interest_rate_increase'] = 1
                                 print(f"Loan created: Lender {lender.id}, Borrower {borrower.id}, Amount: {loan_amount:.2f}, Interest: {interest_rate:.2%}, Term: {term}")
+                        else:
+                            self.state['should_interest_rate_increase'] = 0
+                            # If the borrower rejects the loan offer, penalize the lender
+                            lender_rewards[lender.id] -= 0.1 * loan_amount
 
         # Process existing loans
         for loan in self.loans[:]:
@@ -118,6 +127,12 @@ class LoanMarketEnvironment:
                 payment = loan.monthly_payment()
                 borrower_rewards[loan.borrower.id] += payment
                 lender_rewards[loan.lender.id] += payment
+            elif loan.is_active == False:
+                # If the loan is paid off, remove the loan
+                borrower_rewards[loan.borrower.id] += loan.amount * 1000
+                lender_rewards[loan.lender.id] += loan.amount * 1000
+                self.loans.remove(loan)
+                print(f"Loan paid off: Lender {loan.lender.id}, Borrower {loan.borrower.id}, Amount: {loan.amount:.2f}")
             elif loan.is_defaulted():
                 # If the loan is defaulted, recover the capital and remove the loan 
                 # The lender is penalized for the default
@@ -129,13 +144,8 @@ class LoanMarketEnvironment:
                 loan.lender.recover_loan(loan)
                 self.loans.remove(loan)
                 print(f"Loan defaulted: Lender {loan.lender.id}, Borrower {loan.borrower.id}, Amount: {loan.amount:.2f}")
-            elif loan.is_active == False:
-                # If the loan is paid off, remove the loan
-                loan.lender.recover_loan(loan)
-                borrower_rewards[loan.borrower.id] += loan.amount * 1000
-                lender_rewards[loan.lender.id] += loan.amount * 1000
-                self.loans.remove(loan)
-                print(f"Loan paid off: Lender {loan.lender.id}, Borrower {loan.borrower.id}, Amount: {loan.amount:.2f}")
+
+            
 
 
         # Update states and policies

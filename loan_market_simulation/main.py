@@ -8,7 +8,7 @@ from environment import LoanMarketEnvironment
 from gui import Visualization
 
 def plot_results(history):
-    fig, axs = plt.subplots(3, 2, figsize=(15, 15))
+    fig, axs = plt.subplots(4, 2, figsize=(15, 15))
     fig.suptitle('Loan Market Simulation Results')
 
     axs[0, 0].plot(history['avg_credit_score'])
@@ -31,15 +31,25 @@ def plot_results(history):
     axs[1, 1].set_xlabel('Time Step')
     axs[1, 1].set_ylabel('Default Rate')
 
-    axs[2, 0].plot(history['market_liquidity'])
-    axs[2, 0].set_title('Market Liquidity')
+    axs[2, 0].plot(history['economic_cycle'])
+    axs[2, 0].set_title('Economic Cycle')
     axs[2, 0].set_xlabel('Time Step')
-    axs[2, 0].set_ylabel('Liquidity')
+    axs[2, 0].set_ylabel('Economic Cycle')
 
     axs[2, 1].plot(history['total_lender_capital'])
     axs[2, 1].set_title('Total Lender Capital')
     axs[2, 1].set_xlabel('Time Step')
     axs[2, 1].set_ylabel('Capital')
+
+    axs[3, 0].plot(history['avg_income'])
+    axs[3, 0].set_title('Average Income')
+    axs[3, 0].set_xlabel('Time Step')
+    axs[3, 0].set_ylabel('Income')
+
+    axs[3, 1].plot(history['avg_debt'])
+    axs[3, 1].set_title('Average Debt')
+    axs[3, 1].set_xlabel('Time Step')
+    axs[3, 1].set_ylabel('Debt')
 
     plt.tight_layout()
     plt.savefig('loan_market_simulation_results.png')
@@ -88,7 +98,8 @@ def main(use_best_values=False):
         'default_rate': [],
         'avg_interest_rate': [],
         'market_liquidity': [],
-        'total_lender_capital': []
+        'total_lender_capital': [],
+        'economic_cycle': []
     }
 
     for episode in range(num_episodes):
