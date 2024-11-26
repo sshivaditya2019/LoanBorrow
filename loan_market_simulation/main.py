@@ -92,12 +92,13 @@ def main(use_best_values=False):
     }
 
     for episode in range(num_episodes):
-        state = env.reset()
         done = False
         time_step = 0
 
+        lender_rewards = {lender.id : 0 for lender in lenders}
+        borrower_rewards = {borrower.id : 0 for borrower in borrowers}
         while not done and time_step < max_time_steps:
-            next_state, lender_rewards, borrower_rewards, done = env.step()
+            next_state, lender_rewards, borrower_rewards, done = env.step(lender_rewards, borrower_rewards)
             # Could be logged not implemented (W&B) or tensorboard
             vis.update(env)
 

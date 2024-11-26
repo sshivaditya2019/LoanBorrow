@@ -70,15 +70,16 @@ class LoanMarketEnvironment:
                 borrower.income *= 1
                 borrower.improve_credit_score(0)
 
-    def step(self):
+    def step(self, lender_rewards=None, borrower_rewards=None):
         # A single step in the simulation
         self.time_step += 1
         self.update_economic_cycle() # Update the economic cycle every 5 years
         self.apply_economic_effects() # Apply economic effects on borrowers
 
-        lender_rewards = {lender.id: 0 for lender in self.lenders} # Rewards for lenders
-        borrower_rewards = {borrower.id: 0 for borrower in self.borrowers} # Rewards for borrowers
-
+        if lender_rewards is None:
+            lender_rewards = {lender.id: 0 for lender in self.lenders}
+        if borrower_rewards is None:
+            borrower_rewards = {borrower.id: 0 for borrower in self.borrowers}
         # Lenders make loan offers
         loan_offers = [] # List of all loan offers
         for lender in self.lenders:
@@ -107,7 +108,7 @@ class LoanMarketEnvironment:
                                 # The goal is the maximize the total loan amount for the borrowers
                                 # And minimuze the capital they have sitting idle for the lenders
                                 borrower_rewards[borrower.id] += loan_amount # Update rewards for the borrower
-                                lender_rewards[lender.id] -= loan_amount # Update rewards for the lender
+                                lender_rewards[lender.id] += loan_amount # Update rewards for the lender
                                 print(f"Loan created: Lender {lender.id}, Borrower {borrower.id}, Amount: {loan_amount:.2f}, Interest: {interest_rate:.2%}, Term: {term}")
 
         # Process existing loans
@@ -115,7 +116,7 @@ class LoanMarketEnvironment:
             if loan.make_payment():
                 # If the loan is paid, update the rewards for the borrower and lender
                 payment = loan.monthly_payment()
-                borrower_rewards[loan.borrower.id] -= payment
+                borrower_rewards[loan.borrower.id] += payment
                 lender_rewards[loan.lender.id] += payment
             elif loan.is_defaulted():
                 # If the loan is defaulted, recover the capital and remove the loan 
@@ -128,6 +129,14 @@ class LoanMarketEnvironment:
                 loan.lender.recover_loan(loan)
                 self.loans.remove(loan)
                 print(f"Loan defaulted: Lender {loan.lender.id}, Borrower {loan.borrower.id}, Amount: {loan.amount:.2f}")
+            elif loan.is_active == False:
+                # If the loan is paid off, remove the loan
+                loan.lender.recover_loan(loan)
+                borrower_rewards[loan.borrower.id] += loan.amount * 1000
+                lender_rewards[loan.lender.id] += loan.amount * 1000
+                self.loans.remove(loan)
+                print(f"Loan paid off: Lender {loan.lender.id}, Borrower {loan.borrower.id}, Amount: {loan.amount:.2f}")
+
 
         # Update states and policies
         next_state = self.get_state()

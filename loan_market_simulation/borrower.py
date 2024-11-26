@@ -96,7 +96,9 @@ class Borrower:
         return len(self.loans) < 3 and self.debt_to_income_ratio() < 0.6
 
     def debt_to_income_ratio(self):
-        return self.debt / self.income if self.income > 0 else 1
+        # The monthly payment ratio to the income
+        return sum(l.monthly_payment() for l in self.loans) / (self.income / 12) if self.income > 0 else 0
+
     
     def not_defaulted(self):
         # A borrower is defaulted if the debt to income ratio is greater than 0.6
