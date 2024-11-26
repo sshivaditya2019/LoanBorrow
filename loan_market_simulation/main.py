@@ -7,8 +7,9 @@ from borrower import Borrower
 from environment import LoanMarketEnvironment
 from gui import Visualization
 
+
 def plot_results(history):
-    fig, axs = plt.subplots(3, 2, figsize=(15, 15))
+    fig, axs = plt.subplots(4, 2, figsize=(15, 15))
     fig.suptitle('Loan Market Simulation Results')
 
     axs[0, 0].plot(history['avg_credit_score'])
@@ -41,13 +42,25 @@ def plot_results(history):
     axs[2, 1].set_xlabel('Time Step')
     axs[2, 1].set_ylabel('Capital')
 
+    axs[3, 0].plot(history['avg_income'])
+    axs[3, 0].set_title('Average Income')
+    axs[3, 0].set_xlabel('Time Step')
+    axs[3, 0].set_ylabel('Income')
+
+    axs[3, 1].plot(history['avg_debt'])
+    axs[3, 1].set_title('Average Debt')
+    axs[3, 1].set_xlabel('Time Step')
+    axs[3, 1].set_ylabel('Debt')
+
     plt.tight_layout()
     plt.savefig('loan_market_simulation_results.png')
     plt.close()
 
+
 def save_best_values(best_values):
     with open('best_values.json', 'w') as f:
         json.dump(best_values, f)
+
 
 def load_best_values():
     try:
@@ -56,9 +69,10 @@ def load_best_values():
     except FileNotFoundError:
         return None
 
+
 def main(use_best_values=False):
     num_lenders = 5
-    num_borrowers = 20 # Also be changed in the lender.py's for the DQN's output size
+    num_borrowers = 20  # Also be changed in the lender.py's for the DQN's output size
     num_episodes = 1
     max_time_steps = 720
 
@@ -66,7 +80,8 @@ def main(use_best_values=False):
 
     # All the lenders start with $1,000,000
     lenders = [
-        Lender(i, initial_capital=1_000_000, risk_tolerance=np.random.uniform(0.1, 0.9), best_values=best_values)
+        Lender(i, initial_capital=1_000_000, risk_tolerance=np.random.uniform(
+            0.1, 0.9), best_values=best_values)
         for i in range(num_lenders)
     ]
 
@@ -106,7 +121,8 @@ def main(use_best_values=False):
 
             for key in history.keys():
                 if key == 'total_lender_capital':
-                    history[key].append(sum(lender.capital for lender in env.lenders))
+                    history[key].append(
+                        sum(lender.capital for lender in env.lenders))
                 else:
                     history[key].append(next_state[key])
 
@@ -137,10 +153,12 @@ def main(use_best_values=False):
     print("Simulation complete. Results saved to 'loan_market_simulation_results.png'")
     print("Best values saved to 'best_values.json'")
 
+
 if __name__ == "__main__":
     # Add an argument to use the best values from previous runs
     parser = argparse.ArgumentParser()
-    parser.add_argument('--use_best_values', action='store_true', help='Use best values from previous runs')
+    parser.add_argument('--use_best_values', action='store_true',
+                        help='Use best values from previous runs')
     args = parser.parse_args()
-    
+
     main(use_best_values=args.use_best_values)

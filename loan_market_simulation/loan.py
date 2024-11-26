@@ -2,6 +2,8 @@ import numpy as np
 
 # A Simple Loan Class
 # It represents the loan that is given by the lender to the borrower.
+
+
 class Loan:
     def __init__(self, lender, borrower, amount, interest_rate, term):
         self.lender = lender
@@ -12,9 +14,12 @@ class Loan:
         self.term = term
         self.balance = amount
         self.payments_made = 0
-        self.missed_payments = 0 # Could be used to check credit worthiness of the borrower (Not used in the current implementation)
-        self.is_active = True # Could be used to judge for future loans if the borrower is active or not (Not used in the current implementation)
-        self.total_interest_paid = 0 # Could be used to check credit worthiness of the borrower (Not used in the current implementation)
+        # Could be used to check credit worthiness of the borrower (Not used in the current implementation)
+        self.missed_payments = 0
+        # Could be used to judge for future loans if the borrower is active or not (Not used in the current implementation)
+        self.is_active = True
+        # Could be used to check credit worthiness of the borrower (Not used in the current implementation)
+        self.total_interest_paid = 0
 
     def reset(self):
         self.balance = self.amount
@@ -47,13 +52,16 @@ class Loan:
     def is_defaulted(self):
         # A loan is defaulted if the borrower has missed 3 or more payments or if the debt to income ratio is greater than 0.6
         # That is, the borrower is not able to pay the loan
+        if self.missed_payments >= 3 or self.borrower.debt_to_income_ratio() > 0.6:
+            print(f"DEFAULTED ON LOAN: {self.id}")
         return self.missed_payments >= 3 or self.borrower.debt_to_income_ratio() > 0.6
 
     def current_value(self):
         # Value of the loan at the current time
         # Value is the remaining balance of the loan if the loan is not defaulted
         if self.is_defaulted():
-            return self.balance * 0.5 # If the loan is defaulted, the value is 50% of the remaining balance (Always)
+            # If the loan is defaulted, the value is 50% of the remaining balance (Always)
+            return self.balance * 0.5
         else:
             remaining_payments = self.term - self.payments_made
             return self.monthly_payment() * remaining_payments
@@ -62,20 +70,22 @@ class Loan:
         # If the loan is defaulted, the risk score is 1
         if self.is_defaulted():
             return 1.0
-        
+
         dti_ratio = self.borrower.debt_to_income_ratio()
-        payment_history = self.missed_payments / (self.payments_made + self.missed_payments + 1)
+        payment_history = self.missed_payments / \
+            (self.payments_made + self.missed_payments + 1)
         credit_score_factor = 1 - (self.borrower.credit_score - 300) / 300
         term_factor = self.term / 60
-        
-        risk_score = (dti_ratio * 0.7 + payment_history * 0.1 + credit_score_factor * 0.1 + term_factor * 0.1)
+
+        risk_score = (dti_ratio * 0.7 + payment_history * 0.1 +
+                      credit_score_factor * 0.1 + term_factor * 0.1)
         # Clamp the risk score between 0 and 1
         return min(risk_score, 1.0)
 
     def expected_return(self):
         if self.is_defaulted():
             return -self.balance * 0.5
-        
+
         total_expected_payments = self.monthly_payment() * (self.term - self.payments_made)
         expected_loss = total_expected_payments * self.risk_score()
         return total_expected_payments - expected_loss - (self.balance - self.amount)
