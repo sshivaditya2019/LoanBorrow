@@ -55,7 +55,11 @@ class Loan:
     def is_defaulted(self):
         # A loan is defaulted if the borrower has missed 3 or more payments or if the debt to income ratio is greater than 0.6
         # That is, the borrower is not able to pay the loan
-        return self.missed_payments >= 3 or self.borrower.debt_to_income_ratio() > 0.6
+        if not self.borrower.can_borrow():
+            self.is_active = False
+            
+            return True
+        return False
 
     def current_value(self):
         # Value of the loan at the current time

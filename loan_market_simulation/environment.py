@@ -21,7 +21,8 @@ class LoanMarketEnvironment:
             print("Income :", borrower.income, "Debt :", borrower.debt)
         for borrower in self.borrowers:
             print(f"Borrower {borrower.id} debt: {borrower.debt:.2f} load ids: {[loan.id for loan in borrower.loans]}")
-        return {
+        if self.loans:
+            return {
             'avg_credit_score': np.mean([b.credit_score for b in self.borrowers]),
             'avg_income': np.mean([b.income for b in self.borrowers]),
             'avg_debt': np.mean([l.amount for l in self.loans]),
@@ -32,13 +33,27 @@ class LoanMarketEnvironment:
             'economic_cycle': self.economic_cycle,
             'time_step': self.time_step,
             'should_interest_rate_increase': 1
-        }
+            }
+        else:
+            return {
+            'avg_credit_score': np.mean([b.credit_score for b in self.borrowers]),
+            'avg_income': np.mean([b.income for b in self.borrowers]),
+            'avg_debt': 0,
+            'num_loans': 0,
+            'default_rate': 0,
+            'avg_interest_rate': self.min_interest_rate,
+            'market_liquidity': self.get_market_liquidity(),
+            'economic_cycle': self.economic_cycle,
+            'time_step': self.time_step,
+            'should_interest_rate_increase': 0
+            }
 
     def get_default_rate(self):
         # Default rate is the ratio of defaulted loans to total loans
         # Useful to measure the risk of the loan market
         if not self.loans:
             return 0
+        print("Total Number of default loans: ", sum(loan.is_defaulted() for loan in self.loans))
         return sum(loan.is_defaulted() for loan in self.loans) / len(self.loans)
 
     def get_avg_interest_rate(self):
@@ -89,8 +104,6 @@ class LoanMarketEnvironment:
                 action = lender.get_action(self.state) # Get the action from the policy network
                 interest_rate, loan_amount, term = action 
                 interest_rate = max(interest_rate, self.min_interest_rate)  # Enforce minimum interest rate
-                if lender.max_interest_rate - interest_rate <= 0.02:
-                    lender_rewards[lender.id] -= 0.1 * loan_amount * 10000
                 loan_offers.append((lender, (interest_rate, loan_amount, term))) # Add the loan offer to the list
         print("Loan offers: ", loan_offers)
         # Borrowers evaluate loan offers
@@ -127,7 +140,7 @@ class LoanMarketEnvironment:
                 payment = loan.monthly_payment()
                 borrower_rewards[loan.borrower.id] += payment
                 lender_rewards[loan.lender.id] += payment
-            elif loan.is_active == False:
+            elif loan.is_active == False and loan.is_defaulted() == False:
                 # If the loan is paid off, remove the loan
                 borrower_rewards[loan.borrower.id] += loan.amount * 1000
                 lender_rewards[loan.lender.id] += loan.amount * 1000
@@ -142,8 +155,11 @@ class LoanMarketEnvironment:
                 # Penalize the borrower for the default
                 borrower_rewards[loan.borrower.id] -= ( loan.balance - recovery) * 1000
                 loan.lender.recover_loan(loan)
+                loan.borrower.recover_loan(loan)
                 self.loans.remove(loan)
                 print(f"Loan defaulted: Lender {loan.lender.id}, Borrower {loan.borrower.id}, Amount: {loan.amount:.2f}")
+            else:
+                print(f"Loan active: Lender {loan.lender.id}, Borrower {loan.borrower.id}, Amount: {loan.amount:.2f}, Balance: {loan.balance:.2f}")
 
             
 

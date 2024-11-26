@@ -91,13 +91,22 @@ class Borrower:
         self.eps_decay = 100000
         self.steps_done = 0
 
+    def recover_loan(self, loan):
+        # In case of default
+        try:
+            self.loans.remove(loan)
+        except ValueError:
+            pass
+        self.debt = max(0, self.debt - (loan.balance * 0.5))
+
+
     def can_borrow(self):
         print("Checking if the borrower can borrow")
         # Allow up to 3 loans and a debt-to-income ratio of 0.6
         return len(self.loans) <= 3 and self.debt_to_income_ratio() < 0.6
 
     def debt_to_income_ratio(self):
-        # The monthly payment ratio to the income
+        # The monthly payment ratio to the incom
         return sum(l.monthly_payment() for l in self.loans) / (self.income / 12) if self.income > 0 else 0
 
     def encode_economic_cycle(self, economic_cycle):

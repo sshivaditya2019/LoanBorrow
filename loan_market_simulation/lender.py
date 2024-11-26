@@ -168,7 +168,10 @@ class Lender:
 
     def recover_loan(self, loan):
         # In case of default, the lender recovers 50% of the loan amount (Always ?, not very realistic)
-        self.loans.remove(loan)
+        try:
+            self.loans.remove(loan)
+        except ValueError:
+            pass
         recovery = loan.balance * 0.5
         self.capital += recovery
 

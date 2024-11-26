@@ -132,7 +132,10 @@ def main(use_best_values=False):
                 for lender in lenders:
                     lender.update_target_network()
                 for borrower in borrowers:
+                    if borrower.debt == 0:
+                        borrower.loans = []
                     borrower.update_target_network()
+                    
 
             state = next_state
             time_step += 1
