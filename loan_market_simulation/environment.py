@@ -31,7 +31,7 @@ class LoanMarketEnvironment:
         # Reward for good risk assessment
         credit_score_factor = (loan.borrower.credit_score - 300) / 550
         dti_factor = 1 - loan.borrower.debt_to_income_ratio()
-        risk_assessment_bonus = loan.amount * 0.1 * (credit_score_factor + dti_factor) / 2
+        risk_assessment_bonus = loan.amount * 0.5 * (credit_score_factor + dti_factor) / 2
         
         return immediate_reward + risk_adjusted_return + risk_assessment_bonus
 
@@ -74,32 +74,18 @@ class LoanMarketEnvironment:
             print("Income :", borrower.income, "Debt :", borrower.debt)
         for borrower in self.borrowers:
             print(f"Borrower {borrower.id} debt: {borrower.debt:.2f} load ids: {[loan.id for loan in borrower.loans]}")
-        if self.loans:
-            return {
-            'avg_credit_score': np.mean([b.credit_score for b in self.borrowers]),
-            'avg_income': np.mean([b.income for b in self.borrowers]),
-            'avg_debt': np.mean([l.amount for l in self.loans]),
-            'num_loans': len(self.loans),
-            'default_rate': self.get_default_rate(),
-            'avg_interest_rate': self.get_avg_interest_rate(),
-            'market_liquidity': self.get_market_liquidity(),
-            'economic_cycle': self.economic_cycle,
-            'time_step': self.time_step,
-            'should_interest_rate_increase': 1
-            }
-        else:
-            return {
-            'avg_credit_score': np.mean([b.credit_score for b in self.borrowers]),
-            'avg_income': np.mean([b.income for b in self.borrowers]),
-            'avg_debt': 0,
-            'num_loans': 0,
-            'default_rate': 0,
-            'avg_interest_rate': self.min_interest_rate,
-            'market_liquidity': self.get_market_liquidity(),
-            'economic_cycle': self.economic_cycle,
-            'time_step': self.time_step,
-            'should_interest_rate_increase': 0
-            }
+        return {
+        'avg_credit_score': np.mean([b.credit_score for b in self.borrowers]),
+        'avg_income': np.mean([b.income for b in self.borrowers]),
+        'avg_debt': np.mean([b.debt for b in self.borrowers if (b.debt > 0 and len(b.loans) > 0)]),
+        'num_loans': len(self.loans),
+        'default_rate': self.get_default_rate(),
+        'avg_interest_rate': self.get_avg_interest_rate(),
+        'market_liquidity': self.get_market_liquidity(),
+        'economic_cycle': self.economic_cycle,
+        'time_step': self.time_step,
+        'should_interest_rate_increase': 1
+        }
 
     def get_default_rate(self):
         # Default rate is the ratio of defaulted loans to total loans

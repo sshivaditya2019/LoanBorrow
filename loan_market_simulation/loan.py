@@ -34,14 +34,19 @@ class Loan:
         if self.is_active:
             payment = self.monthly_payment()
             if self.borrower.can_pay(self):
-                self.balance -= payment
+                self.balance = max(0, self.balance - payment)
                 self.payments_made += 1
-                self.lender.capital += payment
-                self.borrower.debt -= max(0, self.borrower.debt - payment)
-                self.borrower.annual_income -= max(0, self.borrower.annual_income - payment)
+                # self.lender.capital += payment
+                self.borrower.debt = max(0, self.borrower.debt - payment)
+                self.borrower.annual_income = max(0,
+                                                  self.borrower.annual_income - payment)
                 interest_portion = self.balance * (self.interest_rate / 12)
                 self.total_interest_paid += interest_portion
                 if self.balance <= 0:
+                    self.lender.capital += (self.amount +
+                                            self.total_interest_paid)
+                    print(
+                        f"Lender: {self.lender.id} | Capital after Loan {self.id} paid: {self.lender.capital}")
                     self.lender.loans.remove(self)
                     self.borrower.loans.remove(self)
                     self.is_active = False
