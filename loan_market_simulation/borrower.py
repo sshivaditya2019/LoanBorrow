@@ -60,9 +60,9 @@ class Borrower:
     def __init__(self, id, best_values=None):
         self.id = id
         if best_values:
-            self.credit_score = int(best_values.get('highest_credit_score', np.random.randint(300, 850)))
-            self.income = int(best_values.get('highest_income', np.random.randint(20000, 150000)))
-            self.debt = int(best_values.get('lowest_debt', np.random.randint(0, 100000)))
+            self.credit_score = int(best_values.get('optimal credit score', np.random.randint(300, 850)))
+            self.income = int(best_values.get('optimal income', np.random.randint(20000, 150000)))
+            self.debt = int(best_values.get('optimal debt', np.random.randint(0, 50000)))
         else:
             self.credit_score = 600
             self.income = 55000
@@ -88,12 +88,12 @@ class Borrower:
 
         # Optimized learning parameters
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.0001)
-        self.memory = ReplayMemory(50000)
-        self.batch_size = 128
-        self.gamma = 0.95
-        self.eps_start = 0.9
-        self.eps_end = 0.05
-        self.eps_decay = 50000
+        self.memory = ReplayMemory(10000)
+        self.batch_size = 256
+        self.gamma = 0.99  # Discount factor for future rewards
+        self.eps_start = 1.0  # Starting value of epsilon for epsilon-greedy policy
+        self.eps_end = 0.01  # Minimum value of epsilon
+        self.eps_decay = 2000  # Decay rate for epsilon
         self.steps_done = 0
         
         # Track performance metrics
@@ -117,7 +117,7 @@ class Borrower:
     def can_borrow(self):
         print("Checking if the borrower can borrow")
         # Only check debt-to-income ratio
-        return self.debt_to_income_ratio() < 0.6
+        return self.debt_to_income_ratio() < 0.5  # Balanced threshold
 
     def debt_to_income_ratio(self):
         # The monthly payment ratio to the income
@@ -128,8 +128,8 @@ class Borrower:
         return economic_cycle  # Already in [-1, 0, 1] range
 
     def not_defaulted(self):
-        # A borrower is defaulted if the debt to income ratio is greater than 0.6
-        return self.debt_to_income_ratio() < 0.6
+        # A borrower is defaulted if the debt to income ratio is greater than 0.5
+        return self.debt_to_income_ratio() < 0.5  # Balanced threshold
 
     def state_to_tensor(self, state, loan_offer):
         # Simplified and normalized state representation
@@ -148,6 +148,24 @@ class Borrower:
         # Evaluate whether to accept or reject a loan offer
         if loan is None:
             return False
+
+        # Initial rejection criteria
+        if self.debt_to_income_ratio() >= 0.5:  # Balanced DTI threshold
+            return False
+            
+        if self.credit_score < 550:  # More lenient credit score requirement
+            return False
+
+        # Calculate total monthly obligations including the new loan
+        potential_monthly_payment = loan.monthly_payment()
+        current_monthly_payments = sum(l.monthly_payment() for l in self.loans)
+        total_monthly_obligations = potential_monthly_payment + current_monthly_payments
+        monthly_income = self.income / 12
+
+        # Reject if total monthly payments would exceed 50% of monthly income
+        if total_monthly_obligations / monthly_income > 0.5:
+            return False
+
         sample = random.random()
         # Epsilon-greedy policy (Exploration vs Exploitation)
         eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * \
@@ -174,11 +192,14 @@ class Borrower:
             literacy_factor = np.random.random() * self.financial_literacy
             payment_history_factor = self.get_payment_success_rate()
             
-            decision = (affordability > 0.7 or 
-                       (affordability > 0.5 and 
-                        risk_factor > 0.5 and 
-                        literacy_factor > 0.5 and 
-                        payment_history_factor > 0.7))
+            # More balanced acceptance criteria
+            decision = (
+                affordability > 0.6 and    # More balanced threshold
+                risk_factor > 0.4 and      # More balanced threshold
+                literacy_factor > 0.4 and   # More balanced threshold
+                payment_history_factor > 0.6 and  # More balanced threshold
+                market_state['economic_cycle'] >= -0.5  # Accept loans in moderately negative to positive conditions
+            )
 
         return decision
 
@@ -253,7 +274,6 @@ class Borrower:
         next_state_values = self.target_net(next_state_batch).max(1)[0].detach()
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch
 
-        # Huber loss for stability
         loss = F.smooth_l1_loss(state_action_values, expected_state_action_values.unsqueeze(1))
 
         # Optimize the model

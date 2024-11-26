@@ -79,10 +79,10 @@ class Lender:
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.0001)
         self.memory = ReplayMemory(50000)
         self.batch_size = 128
-        self.gamma = 0.95
-        self.eps_start = 0.9
-        self.eps_end = 0.05
-        self.eps_decay = 50000
+        self.gamma = 0.99  # Discount factor for future rewards
+        self.eps_start = 1.0  # Starting value of epsilon for epsilon-greedy policy
+        self.eps_end = 0.01  # Minimum value of epsilon
+        self.eps_decay = 2000  # Decay rate for epsilon
         self.steps_done = 0
         
         # Track metrics for adaptive learning
