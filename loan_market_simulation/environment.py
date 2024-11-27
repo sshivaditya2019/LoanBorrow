@@ -16,6 +16,8 @@ class LoanMarketEnvironment:
         self.best_values = best_values  # Store the best values for each feature
         self.inflation = 0.04  # 4% annual inflation rate
 
+        self.use_credit_history = use_credit_history
+
     def calculate_lender_reward(self, loan, is_default=False):
         """Calculate reward for lender based on loan performance"""
         if is_default:
