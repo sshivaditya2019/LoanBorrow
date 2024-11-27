@@ -173,7 +173,6 @@ class Lender:
         
         if self.use_credit_history:
             credit_history = borrower.credit_history
-            credit_history_factor = credit_history / 720
             
             # Buckets of credit history
             if 6 <= credit_history <= 240:
@@ -181,7 +180,7 @@ class Lender:
             if 241 <= credit_history <= 720:
                 credit_history_factor = 2/3
             elif credit_history_factor > 720:
-                credit_history_factor = 1/3
+                credit_history_factor = 1
             
             
             loan_score = (

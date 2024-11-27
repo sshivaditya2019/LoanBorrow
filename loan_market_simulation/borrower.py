@@ -302,4 +302,4 @@ class Borrower:
 
 
     def update_credit_length(self, term):
-        self.credit_length += term    # term is in month
+        self.credit_history += term    # term is in month

@@ -18,8 +18,8 @@ class Loan:
         # Payment tracking
         self.payment_history = []  # Track all payment amounts
         self.payment_dates = []    # Track payment timing
-        self.early_payments = 0    # Track early payments
-        self.late_payments = 0     # Track late payments
+        # self.early_payments = 0    # Track early payments
+        # self.late_payments = 0     # Track late payments
 
     def reset(self):
         """Reset loan to initial state"""
