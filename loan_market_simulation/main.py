@@ -229,7 +229,7 @@ def load_best_values():
             pass
     return None
 
-def main(use_best_values=False, num_lenders=5, num_borrowers=20, num_episodes=1, max_time_steps=720, use_credit_history=False):
+def main(use_best_values=False, num_lenders=5, num_borrowers=20, num_episodes=3, max_time_steps=720, use_credit_history=False):
     """Main simulation function"""
     # Create results directory
     os.makedirs('results', exist_ok=True)
