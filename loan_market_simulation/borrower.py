@@ -150,15 +150,15 @@ class Borrower:
             ], dtype=torch.float32, device=self.device).unsqueeze(0)
         else:
             return torch.tensor([
-                self.credit_score / 850,                    # Normalized credit score
-                self.debt_to_income_ratio(),                # Current DTI ratio
-                self.get_payment_success_rate(),            # Historical payment performance
-                loan_offer[0],                              # Interest rate (already normalized)
-                loan_offer[1] / 100000,                     # Normalized loan amount
-                loan_offer[2] / 36,                         # Normalized loan term
-                state['economic_cycle'],                    # Economic cycle
-                state['market_liquidity']                   # Market liquidity
-            ], dtype=torch.float32, device=self.device).unsqueeze(0)
+            self.credit_score / 850,                    # Normalized credit score
+            self.debt_to_income_ratio(),                # Current DTI ratio
+            self.get_payment_success_rate(),            # Historical payment performance
+            loan_offer[0],                              # Interest rate (already normalized)
+            loan_offer[1] / 100000,                     # Normalized loan amount
+            loan_offer[2] / 36,                         # Normalized loan term
+            state['economic_cycle'],                    # Economic cycle
+            state['market_liquidity']                   # Market liquidity
+        ], dtype=torch.float32, device=self.device).unsqueeze(0)
 
 
 
