@@ -179,7 +179,7 @@ class Lender:
                 credit_history_factor = 1/3
             if 241 <= credit_history <= 720:
                 credit_history_factor = 2/3
-            elif credit_history_factor > 720:
+            elif credit_history > 720:
                 credit_history_factor = 1
             
             

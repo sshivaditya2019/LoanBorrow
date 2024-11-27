@@ -42,7 +42,7 @@ class LoanMarketEnvironment:
                 credit_history_factor = 1/3
             if 241 <= credit_history <= 720:
                 credit_history_factor = 2/3
-            elif credit_history_factor > 720:
+            elif credit_history > 720:
                 credit_history_factor = 1
 
         dti_factor = 1 - loan.borrower.debt_to_income_ratio()
@@ -85,9 +85,9 @@ class LoanMarketEnvironment:
                 credit_history_factor = 1/3
             if 241 <= credit_history <= 720:
                 credit_history_factor = 2/3
-            elif credit_history_factor > 720:
+            elif credit_history > 720:
                 credit_history_factor = 1
-            credit_history_bonus = credit_history_factor * loan.amount * 0.001
+            credit_history_bonus = credit_history_factor * loan.amount * 0.01
 
         dti_ratio = loan.borrower.debt_to_income_ratio()
         
