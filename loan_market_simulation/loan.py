@@ -36,6 +36,7 @@ class Loan:
             if self.borrower.can_pay(self):
                 self.balance = max(0, self.balance - payment)
                 self.payments_made += 1
+                self.borrower.update_credit_length(1 / len(self.borrow.loans))
                 # self.lender.capital += payment
                 self.borrower.debt = max(0, self.borrower.debt - payment)
                 self.borrower.annual_income = max(0,

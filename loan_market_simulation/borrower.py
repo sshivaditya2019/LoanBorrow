@@ -273,3 +273,23 @@ class Borrower:
 
     def update_target_network(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
+
+    def update_credit_length(self, term):
+        self.credit_length += term    
+
+    def update_credit(self, length, remaining_debt_amount, default_times, not_make_payment):
+        if (self.default_times == 0):
+            self.improve_credit_score(1)
+            points = 0
+            total_loan = 0
+            for loan in self.loan:
+                total_loan += loan
+            points += 10 - round((remaining_debt_amount)/total_loan * 10)
+            points += math.ceil(10 * 1/length)
+            self.improve_credit_score(points)
+        if (self.default_times == 3):
+            self.credit_score.append(min(450, self.credit_score))
+        if (self.default_times == 1 & not_make_payment):
+            self.improve_credit_score(-50)
+        if (self.default_times == 2 & not_make_payment):
+            self.improve_credit_score(-100)
