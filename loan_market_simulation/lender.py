@@ -177,9 +177,9 @@ class Lender:
             # Buckets of credit history
             if 6 <= credit_history <= 180:
                 credit_history_factor = 1/3
-            if 180 <= credit_history <= 720:
-                credit_history_factor = 5/6
-            elif credit_history > 720:
+            if 241 <= credit_history <= 720:
+                credit_history_factor = 2/3
+            elif credit_history_factor > 720:
                 credit_history_factor = 1
             
             

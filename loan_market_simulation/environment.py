@@ -40,9 +40,9 @@ class LoanMarketEnvironment:
             # Buckets of credit history
             if 6 <= credit_history <= 180:
                 credit_history_factor = 1/3
-            if 180 <= credit_history <= 720:
+            if 181 <= credit_history <= 720:
                 credit_history_factor = 5/6
-            elif credit_history > 720:
+            elif credit_history_factor > 720:
                 credit_history_factor = 1
 
         dti_factor = 1 - loan.borrower.debt_to_income_ratio()
@@ -83,9 +83,9 @@ class LoanMarketEnvironment:
             # Buckets of credit history
             if 6 <= credit_history <= 180:
                 credit_history_factor = 1/3
-            if 180 <= credit_history <= 720:
+            if 181 <= credit_history <= 720:
                 credit_history_factor = 5/6
-            elif credit_history > 720:
+            elif credit_history_factor > 720:
                 credit_history_factor = 1
             credit_history_bonus = credit_history_factor * loan.amount * 0.05
 
