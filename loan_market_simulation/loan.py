@@ -31,8 +31,8 @@ class Loan:
         self.total_interest_paid = 0
         self.payment_history.clear()
         self.payment_dates.clear()
-        self.early_payments = 0
-        self.late_payments = 0
+        # self.early_payments = 0
+        # self.late_payments = 0
 
     def monthly_payment(self):
         """Calculate monthly payment using amortization formula"""
@@ -88,7 +88,7 @@ class Loan:
             self.consecutive_missed_payments += 1
             self.payment_history.append(0)
             self.payment_dates.append(self.payments_made)
-            self.late_payments += 1
+            # self.late_payments += 1
             return False
 
     def handle_loan_completion(self):
@@ -200,3 +200,6 @@ class Loan:
                 f"Term={self.term} months, Balance=${self.balance:.2f}, "
                 f"Risk Score={self.risk_score():.2f}, Status={status}, "
                 f"Payments Made={self.payments_made}, Missed={self.missed_payments}")
+
+    def update_credit_length(self, term):
+        self.credit_length += term

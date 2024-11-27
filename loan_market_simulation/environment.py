@@ -2,7 +2,7 @@ import numpy as np
 from loan import Loan
 
 class LoanMarketEnvironment:
-    def __init__(self, lenders, borrowers, best_values=None):
+    def __init__(self, lenders, borrowers, best_values=None, use_credit_history=False):
         self.lenders = lenders
         self.borrowers = borrowers
         self.loans = []
