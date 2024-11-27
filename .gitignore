@@ -2,3 +2,4 @@ best_values.json
 loan_market_simulation_results.png
 loan_market_simulation/__pycache__/
 results
+.vscode/

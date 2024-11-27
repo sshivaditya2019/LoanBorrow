@@ -105,15 +105,27 @@ class Lender:
     def state_to_tensor(self, state):
         # Simplified and normalized state representation for better learning
         # Each feature is carefully selected and normalized to [0,1] range
-        return torch.tensor([
-            self.capital / self.initial_capital,  # Normalized capital position
-            state['default_rate'],               # Market default rate
-            state['market_liquidity'],           # Market liquidity
-            self.get_default_rate(),             # Lender's historical default rate
-            self.get_profit_rate(),              # Lender's historical profit rate
-            len(self.loans) / 20,                # Normalized loan portfolio size
-            state['economic_cycle']              # Economic cycle indicator
-        ], dtype=torch.float32, device=self.device).unsqueeze(0)
+        if self.use_credit_history:
+            return torch.tensor([
+                self.capital / self.initial_capital,  # Normalized capital position
+                state['default_rate'],               # Market default rate
+                state['market_liquidity'],           # Market liquidity
+                self.get_default_rate(),             # Lender's historical default rate
+                self.get_profit_rate(),              # Lender's historical profit rate
+                len(self.loans) / 20,                # Normalized loan portfolio size
+                state['economic_cycle'],             # Economic cycle indicator
+                state['avg_credit_history']          # Average credit history
+            ], dtype=torch.float32, device=self.device).unsqueeze(0)
+        else:
+            return torch.tensor([
+                self.capital / self.initial_capital,  # Normalized capital position
+                state['default_rate'],               # Market default rate
+                state['market_liquidity'],           # Market liquidity
+                self.get_default_rate(),             # Lender's historical default rate
+                self.get_profit_rate(),              # Lender's historical profit rate
+                len(self.loans) / 20,                # Normalized loan portfolio size
+                state['economic_cycle']              # Economic cycle indicator
+            ], dtype=torch.float32, device=self.device).unsqueeze(0)
 
     def get_action(self, state):
         sample = random.random()
@@ -162,13 +174,24 @@ class Lender:
         if self.use_credit_history:
             credit_history = borrower.credit_history
             credit_history_factor = credit_history / 720
+            
+            # Buckets of credit history
+            if 6 <= credit_history <= 240:
+                credit_history_factor = 1/3
+            if 241 <= credit_history <= 720:
+                credit_history_factor = 2/3
+            elif credit_history_factor > 720:
+                credit_history_factor = 1/3
+            
+            
             loan_score = (
-                credit_score_factor * 0.2 +
-                credit_history_factor * 0.1 
+                credit_score_factor * 0.2 + 
+                credit_history_factor * 0.1 + 
                 dti_factor * 0.3 + 
                 loan_amount_factor * 0.2 + 
                 default_history_factor * 0.2
             ) * (self.risk_tolerance + 0.2)
+
         else:    
             loan_score = (
                 credit_score_factor * 0.3 + 
@@ -254,6 +277,7 @@ class Lender:
         self.profit_history = []
         self.reward_history.clear()
         self.avg_reward = 0
+        self.use_credit_history = self.use_credit_history
 
     def update_target_network(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
