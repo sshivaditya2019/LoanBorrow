@@ -179,6 +179,12 @@ class LoanMarketEnvironment:
         self.cycle_duration += 1
         if self.cycle_duration >= self.max_cycle_duration:
             self.economic_cycle = np.random.choice([-1, 0, 1])
+            # if self.time_step <= 240:
+            #     self.economic_cycle = 0
+            # elif 241 <= self.time_step <= 480:
+            #     self.economic_cycle = -1
+            # elif self.time_step >= 481:
+            #     self.economic_cycle = 1
             self.cycle_duration = 0
 
     def apply_economic_effects(self):
