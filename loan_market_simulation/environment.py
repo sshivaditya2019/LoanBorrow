@@ -6,38 +6,110 @@ class LoanMarketEnvironment:
         self.lenders = lenders
         self.borrowers = borrowers
         self.loans = []
+        self.rejected_loans = []  # Track rejected loans
         self.time_step = 0
         self.economic_cycle = 0  # 0: neutral, 1: boom, -1: recession
-        self.cycle_duration = 0 # Duration of the current economic cycle
+        self.cycle_duration = 0  # Duration of the current economic cycle
         self.max_cycle_duration = 60  # 5 years
-        self.min_interest_rate = 0.01  # 1% minimum interest rate 
-        self.best_values = best_values # Store the best values for each feature,
-        self.inflation_rate = np.random.uniform(0.01, 0.03)  # 1-3% initial inflation
-        self.gdp_growth = np.random.uniform(0.02, 0.04)  # 2-4% initial GDP growth
-        self.unemployment_rate = np.random.uniform(0.03, 0.06)
+        self.min_interest_rate = 0.03  # 3% minimum interest rate
+        self.best_values = best_values  # Store the best values for each feature
+        self.inflation = 0.04  # 4% annual inflation rate
+        self.gdp_growth = 0.0 # 0% annual GDP growth
+        self.cci = 0.75
         self.state = self.get_state()
 
+    def calculate_lender_reward(self, loan, is_default=False):
+        """Calculate reward for lender based on loan performance"""
+        if is_default:
+            # Penalize defaults heavily
+            return -loan.amount * 2
+        
+        # Base reward for giving out a loan
+        immediate_reward = loan.amount * 0.05
+        
+        # Calculate return on investment
+        interest_earned = loan.total_interest()
+        risk_adjusted_return = interest_earned * (1 - self.get_default_rate())
+        
+        # Reward for good risk assessment
+        credit_score_factor = (loan.borrower.credit_score - 300) / 550
+        dti_factor = 1 - loan.borrower.debt_to_income_ratio()
+        risk_assessment_bonus = loan.amount * 0.5 * (credit_score_factor + dti_factor) / 2
+        
+        # Additional reward for larger loans (>5% of lender's capital)
+        size_bonus = 0
+        if loan.amount > (loan.lender.initial_capital * 0.05):
+            size_multiplier = min(3.0, loan.amount / (loan.lender.initial_capital * 0.05))
+            size_bonus = immediate_reward * (size_multiplier - 1)
+        
+        return immediate_reward + risk_adjusted_return + risk_assessment_bonus + size_bonus
+
+    def calculate_borrower_reward(self, loan, is_default=False):
+        """Calculate reward for borrower based on loan terms and outcome"""
+        if is_default:
+            # Severe penalty for defaulting
+            return -loan.amount * 3
+        
+        # Immediate reward for getting a loan
+        immediate_reward = loan.amount * 0.1
+        
+        # Interest rate optimization (reward lower rates)
+        rate_factor = 1 - (loan.interest_rate - self.min_interest_rate) / (0.075 - self.min_interest_rate)
+        interest_reward = loan.amount * 0.2 * rate_factor
+        
+        # Financial health factors
+        credit_score_bonus = (loan.borrower.credit_score - 300) / 550 * loan.amount * 0.1
+        dti_ratio = loan.borrower.debt_to_income_ratio()
+        
+        # Penalize high DTI ratios exponentially
+        dti_penalty = -np.exp(max(0, dti_ratio - 0.4)) * loan.amount * 0.1
+        
+        # Affordability check
+        monthly_payment = loan.monthly_payment()
+        monthly_income = loan.borrower.income / 12
+        affordability_ratio = monthly_payment / monthly_income
+        
+        # Penalize taking loans that are too large relative to income
+        if affordability_ratio > 0.5:
+            affordability_penalty = -loan.amount * (affordability_ratio - 0.5) * 2
+        else:
+            affordability_penalty = 0
+        
+        return immediate_reward + interest_reward + credit_score_bonus + dti_penalty + affordability_penalty
+
     def get_state(self):
+        # Get the current state
+        avg_credit_score = np.mean([b.credit_score for b in self.borrowers])
+        avg_income = np.mean([b.income for b in self.borrowers])
+        debts = [b.debt for b in self.borrowers if b.debt > 0]
+        avg_debt = np.mean(debts) if debts else 0
+        
+        # Debug information
+        for borrower in self.borrowers:
+            print(f"Borrower {borrower.id} - Income: {borrower.income}, Debt: {borrower.debt}")
+            print(f"Loan IDs: {[loan.id for loan in borrower.loans]}")
+        
         return {
-            'avg_credit_score': np.mean([b.credit_score for b in self.borrowers]),
-            'avg_income': np.mean([b.income for b in self.borrowers]),
-            'avg_debt': np.mean([b.debt for b in self.borrowers]),
+            'avg_credit_score': avg_credit_score,
+            'avg_income': avg_income,
+            'avg_debt': avg_debt,
             'num_loans': len(self.loans),
+            'num_rejected_loans': len(self.rejected_loans),  # Add rejected loans count
             'default_rate': self.get_default_rate(),
             'avg_interest_rate': self.get_avg_interest_rate(),
             'market_liquidity': self.get_market_liquidity(),
             'economic_cycle': self.economic_cycle,
             'time_step': self.time_step,
-            'inflation_rate': self.inflation_rate,
+            'should_interest_rate_increase': 1,
             'gdp_growth': self.gdp_growth,
-            'unemployment_rate': self.unemployment_rate,
+            'cci': self.cci
         }
 
     def get_default_rate(self):
         # Default rate is the ratio of defaulted loans to total loans
-        # Useful to measure the risk of the loan market
         if not self.loans:
             return 0
+        print("Total Number of default loans: ", sum(loan.is_defaulted() for loan in self.loans))
         return sum(loan.is_defaulted() for loan in self.loans) / len(self.loans)
 
     def get_avg_interest_rate(self):
@@ -48,9 +120,9 @@ class LoanMarketEnvironment:
 
     def get_market_liquidity(self):
         # Market liquidity is the ratio of total lender capital to total borrower debt capacity
-        # Allows to measure the ability of the market to provide loans
         total_lender_capital = sum(lender.capital for lender in self.lenders)
-        total_borrower_debt_capacity = sum(max(0, borrower.income * 0.5 - borrower.debt) for borrower in self.borrowers)
+        total_borrower_debt_capacity = sum(max(0, borrower.income * 0.5 - borrower.debt) 
+                                         for borrower in self.borrowers)
         return min(1, total_lender_capital / max(1, total_borrower_debt_capacity))
 
     def update_economic_cycle(self):
@@ -58,147 +130,184 @@ class LoanMarketEnvironment:
         self.cycle_duration += 1
         if self.cycle_duration >= self.max_cycle_duration:
             self.economic_cycle = np.random.choice([-1, 0, 1])
+            # if self.time_step <= 240:
+            #     self.economic_cycle = 0
+            # elif 241 <= self.time_step <= 480:
+            #     self.economic_cycle = -1
+            # elif self.time_step >= 481:
+            #     self.economic_cycle = 1
+            # self.cycle_duration = 0
             self.cycle_duration = 0
 
+            if self.economic_cycle == 1:
+                self.cci = min(1, self.cci + 0.05)
+            elif self.economic_cycle == -1:
+                self.cci = max(0, self.cci - 0.05)
+                
+
     def apply_economic_effects(self):
-        # Apply economic effects on borrowers
-        # By increasing or decreasing their income and credit score
-        # for borrower in self.borrowers:
-        #     if self.economic_cycle == 1:  # boom
-        #         borrower.income *= 1.01
-        #         borrower.improve_credit_score(1)
-        #     elif self.economic_cycle == -1:  # recession
-        #         borrower.income *= 0.99
-        #         borrower.improve_credit_score(-1)
+        """Apply economic effects on borrowers based on the current economic cycle and GDP growth."""
+        # Adjust GDP growth based on the economic cycle
+        if self.economic_cycle == 1:  # Boom
+            self.gdp_growth = min(0.05, self.gdp_growth + 0.005)
+        elif self.economic_cycle == -1:  # Recession
+            self.gdp_growth = max(-0.05, self.gdp_growth - 0.005)
 
-        if self.economic_cycle == 1:  # boom
-            self.gdp_growth = min(0.08, self.gdp_growth * 1.05)
-            self.unemployment_rate = max(0.03, self.unemployment_rate * 0.95)
-            self.inflation_rate *= 1.02
-        elif self.economic_cycle == -1:  # recession
-            self.gdp_growth = max(-0.02, self.gdp_growth * 0.95)
-            self.unemployment_rate = min(0.12, self.unemployment_rate * 1.05)
-            self.inflation_rate *= 0.98
-        
+        # Adjust borrowers' incomes using GDP growth
         for borrower in self.borrowers:
-            borrower.income *= (1 + self.gdp_growth) * (1 + self.inflation_rate)
-            borrower.improve_credit_score(-5 if np.random.random() < self.unemployment_rate else 1)
+            borrower.income *= 1.0 * (1 + (self.gdp_growth / 12))
 
-    def step(self):
+            # Credit score adjustments based on the economic cycle
+            if self.economic_cycle == 1:  # Boom
+                borrower.income *= 1.0 * (1 + (self.inflation)/12)
+                borrower.improve_credit_score(1)
+            elif self.economic_cycle == -1:  # Recession
+                borrower.income *= 1.0 * (1 - (0.01/12))
+                borrower.improve_credit_score(-1)
+
+    def step(self, lender_rewards=None, borrower_rewards=None):
         # A single step in the simulation
         self.time_step += 1
-        self.update_economic_cycle() # Update the economic cycle every 5 years
-        self.apply_economic_effects() # Apply economic effects on borrowers
+        self.update_economic_cycle()
+        self.apply_economic_effects()
 
-        lender_rewards = {lender.id: 0 for lender in self.lenders} # Rewards for lenders
-        borrower_rewards = {borrower.id: 0 for borrower in self.borrowers} # Rewards for borrowers
+        # Clear rejected loans from previous step
+        self.rejected_loans.clear()
 
+        if lender_rewards is None:
+            lender_rewards = {lender.id: 0 for lender in self.lenders}
+        if borrower_rewards is None:
+            borrower_rewards = {borrower.id: 0 for borrower in self.borrowers}
+        
         # Lenders make loan offers
-        loan_offers = [] # List of all loan offers
+        loan_offers = []
         for lender in self.lenders:
-            if lender.capital > lender.min_loan_amount: # Only make offers if the lender has enough capital
-                action = lender.get_action(self.state) # Get the action from the policy network
-                interest_rate, loan_amount, term = action 
-                interest_rate = max(interest_rate, self.min_interest_rate)  # Enforce minimum interest rate
-                loan_offers.append((lender, (interest_rate, loan_amount, term))) # Add the loan offer to the list
-
+            if lender.capital > lender.min_loan_amount:
+                action = lender.get_action(self.state)
+                interest_rate, loan_amount, term = action
+                interest_rate = max(interest_rate, self.min_interest_rate)
+                loan_offers.append((lender, (interest_rate, loan_amount, term)))
+        print("Loan offers: ", loan_offers)
+        
         # Borrowers evaluate loan offers
         for borrower in self.borrowers:
-            if borrower.can_borrow(): # Only evaluate loan offers if the borrower can borrow
+            if borrower.can_borrow():
                 for lender, offer in loan_offers:
                     interest_rate, loan_amount, term = offer
-                    loan = Loan(lender, borrower, loan_amount, interest_rate, term) # Create a loan object
+                    loan = Loan(lender, borrower, loan_amount, interest_rate, term)
                     
-                    if lender.assess_loan(loan, borrower, self.state): # Check if the lender can grant the loan
-                        decision = borrower.evaluate_loan(loan, self.state) # Evaluate the loan offer
+                    if lender.assess_loan(loan, borrower, self.state):
+                        decision = borrower.evaluate_loan(loan, self.state)
                         
                         if decision:
-                            if borrower.apply_for_loan(loan) and lender.grant_loan(loan): # Apply for the loan and grant it
+                            if borrower.apply_for_loan(loan) and lender.grant_loan(loan):
                                 self.loans.append(loan)
-                                # In this case, the rewards are the loan amount
-                                # So borrower rewards are positive and lender rewards are negative
-                                # This is to encourage borrowers to take loans and lenders to grant them 
-                                # The goal is the maximize the total loan amount for the borrowers
-                                # And minimuze the capital they have sitting idle for the lenders
-                                borrower_rewards[borrower.id] += loan_amount # Update rewards for the borrower
-                                lender_rewards[lender.id] -= loan_amount # Update rewards for the lender
-                                print(f"Loan created: Lender {lender.id}, Borrower {borrower.id}, Amount: {loan_amount:.2f}, Interest: {interest_rate:.2%}, Term: {term}")
+                                borrower_rewards[borrower.id] += self.calculate_borrower_reward(loan)
+                                lender_rewards[lender.id] += self.calculate_lender_reward(loan)
+                                self.state['should_interest_rate_increase'] = 1
+                                print(f"Loan created: Lender {lender.id}, Borrower {borrower.id}, "
+                                      f"Amount: {loan_amount:.2f}, Interest: {interest_rate:.2%}, Term: {term}")
+                        else:
+                            # Track rejected loans
+                            self.rejected_loans.append(loan)
+                            self.state['should_interest_rate_increase'] = 0
+                            penalty = loan_amount * 0.01
+                            lender_rewards[lender.id] -= penalty
+                            print(f"Loan rejected: Lender {lender.id}, Borrower {borrower.id}, "
+                                  f"Amount: {loan_amount:.2f}, Interest: {interest_rate:.2%}, Term: {term}")
 
         # Process existing loans
         for loan in self.loans[:]:
             if loan.make_payment():
-                # If the loan is paid, update the rewards for the borrower and lender
                 payment = loan.monthly_payment()
-                borrower_rewards[loan.borrower.id] -= payment
-                lender_rewards[loan.lender.id] += payment
-            elif loan.is_defaulted():
-                # If the loan is defaulted, recover the capital and remove the loan 
-                # The lender is penalized for the default
-                # By the amount of the loan that was not recovered
-                recovery = loan.current_value()
-                lender_rewards[loan.lender.id] -= (loan.balance - recovery)
-                loan.lender.recover_loan(loan, self.state)
+                interest_portion = payment * loan.interest_rate / 12
+                borrower_rewards[loan.borrower.id] += payment * 0.05
+                lender_rewards[loan.lender.id] += interest_portion * 0.1
+            elif loan.is_active == False and loan.is_defaulted() == False:
+                borrower_rewards[loan.borrower.id] += self.calculate_borrower_reward(loan) * 2
+                lender_rewards[loan.lender.id] += self.calculate_lender_reward(loan) * 2
                 self.loans.remove(loan)
-                print(f"Loan defaulted: Lender {loan.lender.id}, Borrower {loan.borrower.id}, Amount: {loan.amount:.2f}")
+                print(f"Loan paid off: Lender {loan.lender.id}, Borrower {loan.borrower.id}, "
+                      f"Amount: {loan.amount:.2f}")
+            elif loan.is_defaulted():
+                borrower_rewards[loan.borrower.id] += self.calculate_borrower_reward(loan, True)
+                lender_rewards[loan.lender.id] += self.calculate_lender_reward(loan, True)
+                loan.lender.recover_loan(loan)
+                loan.borrower.recover_loan(loan)
+                self.loans.remove(loan)
+                print(f"Loan defaulted: Lender {loan.lender.id}, Borrower {loan.borrower.id}, "
+                      f"Amount: {loan.amount:.2f}")
+            else:
+                print(f"Loan active: Lender {loan.lender.id}, Borrower {loan.borrower.id}, "
+                      f"Amount: {loan.amount:.2f}, Balance: {loan.balance:.2f}")
 
         # Update states and policies
         next_state = self.get_state()
         for lender in self.lenders:
-            lender.update_state(self.state, lender.get_action(self.state), lender_rewards[lender.id], next_state)
+            lender.update_state(self.state, lender.get_action(self.state), 
+                              lender_rewards[lender.id], next_state)
         for borrower in self.borrowers:
-            # Use a dummy loan offer when there's no actual loan to evaluate
-            # Increase the action space to include the dummy loan offer (Optional)
-            dummy_loan_offer = (self.min_interest_rate, 0, 12)
-            action = borrower.evaluate_loan(Loan(None, borrower, 0, self.min_interest_rate, 12), self.state)
-            borrower.update_state(self.state, action, borrower_rewards[borrower.id], next_state, dummy_loan_offer)
+            dummy_loan = Loan(None, borrower, 0, self.min_interest_rate, 12)
+            action = borrower.evaluate_loan(dummy_loan, self.state)
+            borrower.update_state(self.state, action, borrower_rewards[borrower.id], 
+                                next_state, (self.min_interest_rate, 0, 12))
 
         self.state = next_state
 
-        # Stop when the simulation reaches the maximum time step or when there are no more loans or capital
-        done = self.time_step >= 720 or len(self.loans) == 0 and all(lender.capital <= lender.min_loan_amount for lender in self.lenders)
+        # Check termination
+        done = (self.time_step >= 720 or 
+                (len(self.loans) == 0 and 
+                 all(lender.capital <= lender.min_loan_amount for lender in self.lenders)))
 
         return self.state, lender_rewards, borrower_rewards, done
 
     def reset(self):
         self.loans = []
+        self.rejected_loans = []  # Reset rejected loans
         self.time_step = 0
         self.economic_cycle = 0
         self.cycle_duration = 0
+        
         for borrower in self.borrowers:
             borrower.reset()
         for lender in self.lenders:
             lender.reset()
+            
         self.state = self.get_state()
         return self.state
 
     def print_statistics(self):
-        print(f"Time step: {self.time_step}")
-        print(f"Economic cycle: {'Boom' if self.economic_cycle == 1 else 'Recession' if self.economic_cycle == -1 else 'Neutral'}")
-        print(f"Average credit score: {self.state['avg_credit_score']:.2f}")
-        print(f"Average income: ${self.state['avg_income']:.2f}")
-        print(f"Average debt: ${self.state['avg_debt']:.2f}")
-        print(f"Number of active loans: {self.state['num_loans']}")
-        print(f"Default rate: {self.state['default_rate']:.2%}")
-        print(f"Average interest rate: {self.state['avg_interest_rate']:.2%}")
-        print(f"Market liquidity: {self.state['market_liquidity']:.2f}")
-        print(f"Total lender capital: ${sum(lender.capital for lender in self.lenders):.2f}")
-        print(f"Total borrower debt: ${sum(borrower.debt for borrower in self.borrowers):.2f}")
+        print(f"\n=== Market Statistics at Time Step {self.time_step} ===")
+        print(f"Economic Cycle: {'Boom' if self.economic_cycle == 1 else 'Recession' if self.economic_cycle == -1 else 'Neutral'}")
+        print(f"Average Credit Score: {self.state['avg_credit_score']:.2f}")
+        print(f"Average Income: ${self.state['avg_income']:.2f}")
+        print(f"Average Debt: ${self.state['avg_debt']:.2f}")
+        print(f"Active Loans: {self.state['num_loans']}")
+        print(f"Rejected Loans: {self.state['num_rejected_loans']}")  # Add rejected loans to statistics
+        print(f"Default Rate: {self.state['default_rate']:.2%}")
+        print(f"Average Interest Rate: {self.state['avg_interest_rate']:.2%}")
+        print(f"Market Liquidity: {self.state['market_liquidity']:.2f}")
+        print(f"Total Lender Capital: ${sum(lender.capital for lender in self.lenders):.2f}")
+        print(f"Total Borrower Debt: ${sum(borrower.debt for borrower in self.borrowers):.2f}")
+        print("=" * 50)
 
     def update_best_values(self):
         if self.best_values is None:
             self.best_values = {}
 
-        self.best_values['highest_credit_score'] = max(self.best_values.get('highest_credit_score', 0), 
-                                                       max(b.credit_score for b in self.borrowers))
-        self.best_values['lowest_debt'] = min(self.best_values.get('lowest_debt', float('inf')), 
-                                              min(b.debt for b in self.borrowers))
-        self.best_values['highest_income'] = max(self.best_values.get('highest_income', 0), 
-                                                 max(b.income for b in self.borrowers))
-        self.best_values['highest_lender_capital'] = max(self.best_values.get('highest_lender_capital', 0), 
-                                                         max(l.capital for l in self.lenders))
-        self.best_values['lowest_default_rate'] = min(self.best_values.get('lowest_default_rate', float('inf')), 
-                                                      self.get_default_rate())
-        self.best_values['optimal_interest_rate'] = self.get_avg_interest_rate() 
-        self.best_values['optimal credit score'] = self.state['avg_credit_score']
-        self.best_values['optimal income'] = self.state['avg_income']
-        self.best_values['optimal debt'] = self.state['avg_debt']
+        self.best_values.update({
+            'highest_credit_score': max(self.best_values.get('highest_credit_score', 0),
+                                     max(b.credit_score for b in self.borrowers)),
+            'lowest_debt': min(self.best_values.get('lowest_debt', float('inf')),
+                            min(b.debt for b in self.borrowers)),
+            'highest_income': max(self.best_values.get('highest_income', 0),
+                               max(b.income for b in self.borrowers)),
+            'highest_lender_capital': max(self.best_values.get('highest_lender_capital', 0),
+                                       max(l.capital for l in self.lenders)),
+            'lowest_default_rate': min(self.best_values.get('lowest_default_rate', float('inf')),
+                                    self.get_default_rate()),
+            'optimal_interest_rate': self.get_avg_interest_rate(),
+            'optimal credit score': self.state['avg_credit_score'],
+            'optimal income': self.state['avg_income'],
+            'optimal debt': self.state['avg_debt']
+        })
