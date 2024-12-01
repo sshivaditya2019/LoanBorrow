@@ -57,7 +57,7 @@ class DQN(nn.Module):
         return self.fc3(x)
 
 class Borrower:
-    def __init__(self, id, best_values=None):
+    def __init__(self, id, best_values=None, use_credit_history=False):
         self.id = id
         if best_values:
             self.credit_score = int(best_values.get('optimal credit score', np.random.randint(300, 850)))
@@ -68,6 +68,9 @@ class Borrower:
             self.income = 55000
             self.debt = 0
         
+        self.use_credit_history = use_credit_history
+        if self.use_credit_history:
+            self.credit_history = 6
         self.loans = []
         self.risk_tolerance = np.random.uniform(0.1, 0.7)
         self.financial_literacy = np.random.uniform(0.5, 0.9)
@@ -79,7 +82,7 @@ class Borrower:
 
         # RL setup
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.input_size = 8
+        self.input_size = 8 if not self.use_credit_history else 9
         self.output_size = 2  # 0: Reject, 1: Accept
         self.policy_net = DQN(self.input_size, self.output_size).to(self.device)
         self.target_net = DQN(self.input_size, self.output_size).to(self.device)
@@ -133,7 +136,20 @@ class Borrower:
 
     def state_to_tensor(self, state, loan_offer):
         # Simplified and normalized state representation
-        return torch.tensor([
+        if self.use_credit_history:
+            return torch.tensor([
+                self.credit_score / 850,                    # Normalized credit score
+                self.debt_to_income_ratio(),                # Current DTI ratio
+                self.get_payment_success_rate(),            # Historical payment performance
+                loan_offer[0],                              # Interest rate (already normalized)
+                loan_offer[1] / 100000,                     # Normalized loan amount
+                loan_offer[2] / 36,                         # Normalized loan term
+                state['economic_cycle'],                    # Economic cycle
+                state['market_liquidity'],                  # Market liquidity
+                self.credit_history                         # Credit history    
+            ], dtype=torch.float32, device=self.device).unsqueeze(0)
+        else:
+            return torch.tensor([
             self.credit_score / 850,                    # Normalized credit score
             self.debt_to_income_ratio(),                # Current DTI ratio
             self.get_payment_success_rate(),            # Historical payment performance
@@ -143,6 +159,8 @@ class Borrower:
             state['economic_cycle'],                    # Economic cycle
             state['market_liquidity']                   # Market liquidity
         ], dtype=torch.float32, device=self.device).unsqueeze(0)
+
+
 
     def evaluate_loan(self, loan, market_state):
         # Evaluate whether to accept or reject a loan offer
@@ -225,20 +243,6 @@ class Borrower:
             return True
         return False
 
-    def make_payment(self, loan):
-        # Make monthly payment on a loan
-        payment = loan.monthly_payment()
-        if (self.income//12) >= payment:
-            self.annual_income -= payment
-            loan.balance -= payment
-            if loan.balance <= 0:
-                self.loans.remove(loan)
-                self.improve_credit_score(10)
-            self.payment_history.append(1)  # Record successful payment
-            return True
-        self.payment_history.append(0)  # Record failed payment
-        return False
-
     def can_pay(self, loan):
         # Check if the borrower can make the monthly payment
         return (self.income//12) >= loan.monthly_payment()
@@ -290,6 +294,12 @@ class Borrower:
         self.payment_history = []
         self.reward_history.clear()
         self.avg_reward = 0
+        if self.use_credit_history:
+            self.credit_history = 6
 
     def update_target_network(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
+
+
+    def update_credit_length(self, term):
+        self.credit_history += term    # term is in month

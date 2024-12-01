@@ -2,7 +2,7 @@ import numpy as np
 from loan import Loan
 
 class LoanMarketEnvironment:
-    def __init__(self, lenders, borrowers, best_values=None):
+    def __init__(self, lenders, borrowers, best_values=None, use_credit_history=False):
         self.lenders = lenders
         self.borrowers = borrowers
         self.loans = []
@@ -12,9 +12,12 @@ class LoanMarketEnvironment:
         self.cycle_duration = 0  # Duration of the current economic cycle
         self.max_cycle_duration = 60  # 5 years
         self.min_interest_rate = 0.03  # 3% minimum interest rate
+        self.use_credit_history = use_credit_history
         self.state = self.get_state()
         self.best_values = best_values  # Store the best values for each feature
         self.inflation = 0.04  # 4% annual inflation rate
+        
+        
 
     def calculate_lender_reward(self, loan, is_default=False):
         """Calculate reward for lender based on loan performance"""
@@ -31,8 +34,23 @@ class LoanMarketEnvironment:
         
         # Reward for good risk assessment
         credit_score_factor = (loan.borrower.credit_score - 300) / 550
+        if self.use_credit_history:
+            credit_history = loan.borrower.credit_history
+            
+            # Buckets of credit history
+            if 6 <= credit_history <= 180:
+                credit_history_factor = 1/3
+            if 181 <= credit_history <= 720:
+                credit_history_factor = 5/6
+            elif credit_history > 720:
+                credit_history_factor = 1
+
         dti_factor = 1 - loan.borrower.debt_to_income_ratio()
-        risk_assessment_bonus = loan.amount * 0.5 * (credit_score_factor + dti_factor) / 2
+        if self.use_credit_history:
+            risk_assessment_bonus = loan.amount * 0.5 * (credit_score_factor + dti_factor + credit_history_factor) / 3   
+            # print(f"risk:{risk_assessment_bonus}") 
+        else:
+            risk_assessment_bonus = loan.amount * 0.5 * (credit_score_factor + dti_factor) / 2
         
         # Additional reward for larger loans (>5% of lender's capital)
         size_bonus = 0
@@ -40,7 +58,7 @@ class LoanMarketEnvironment:
             size_multiplier = min(3.0, loan.amount / (loan.lender.initial_capital * 0.05))
             size_bonus = immediate_reward * (size_multiplier - 1)
         
-        return immediate_reward + risk_adjusted_return + risk_assessment_bonus + size_bonus
+        return immediate_reward + risk_adjusted_return + risk_assessment_bonus + size_bonus    
 
     def calculate_borrower_reward(self, loan, is_default=False):
         """Calculate reward for borrower based on loan terms and outcome"""
@@ -57,6 +75,20 @@ class LoanMarketEnvironment:
         
         # Financial health factors
         credit_score_bonus = (loan.borrower.credit_score - 300) / 550 * loan.amount * 0.1
+
+        # Credit history
+        if self.use_credit_history:
+            credit_history = loan.borrower.credit_history
+            
+            # Buckets of credit history
+            if 6 <= credit_history <= 180:
+                credit_history_factor = 1/3
+            if 181 <= credit_history <= 720:
+                credit_history_factor = 5/6
+            elif credit_history> 720:
+                credit_history_factor = 1
+            credit_history_bonus = credit_history_factor * loan.amount * 0.05
+
         dti_ratio = loan.borrower.debt_to_income_ratio()
         
         # Penalize high DTI ratios exponentially
@@ -73,7 +105,10 @@ class LoanMarketEnvironment:
         else:
             affordability_penalty = 0
         
-        return immediate_reward + interest_reward + credit_score_bonus + dti_penalty + affordability_penalty
+        if self.use_credit_history:
+            return immediate_reward + interest_reward + credit_score_bonus + dti_penalty + affordability_penalty + credit_history_bonus
+        else:
+            return immediate_reward + interest_reward + credit_score_bonus + dti_penalty + affordability_penalty
 
     def get_state(self):
         # Get the current state
@@ -81,16 +116,20 @@ class LoanMarketEnvironment:
         avg_income = np.mean([b.income for b in self.borrowers])
         debts = [b.debt for b in self.borrowers if b.debt > 0]
         avg_debt = np.mean(debts) if debts else 0
+        if self.use_credit_history:
+            avg_credit_history = np.mean([b.credit_history for b in self.borrowers]) 
         
         # Debug information
         for borrower in self.borrowers:
             print(f"Borrower {borrower.id} - Income: {borrower.income}, Debt: {borrower.debt}")
             print(f"Loan IDs: {[loan.id for loan in borrower.loans]}")
         
-        return {
+        if self.use_credit_history:
+             return {
             'avg_credit_score': avg_credit_score,
             'avg_income': avg_income,
             'avg_debt': avg_debt,
+            'avg_credit_history': avg_credit_history,
             'num_loans': len(self.loans),
             'num_rejected_loans': len(self.rejected_loans),  # Add rejected loans count
             'default_rate': self.get_default_rate(),
@@ -100,6 +139,20 @@ class LoanMarketEnvironment:
             'time_step': self.time_step,
             'should_interest_rate_increase': 1
         }
+        else:
+            return {
+                'avg_credit_score': avg_credit_score,
+                'avg_income': avg_income,
+                'avg_debt': avg_debt,
+                'num_loans': len(self.loans),
+                'num_rejected_loans': len(self.rejected_loans),  # Add rejected loans count
+                'default_rate': self.get_default_rate(),
+                'avg_interest_rate': self.get_avg_interest_rate(),
+                'market_liquidity': self.get_market_liquidity(),
+                'economic_cycle': self.economic_cycle,
+                'time_step': self.time_step,
+                'should_interest_rate_increase': 1
+            }
 
     def get_default_rate(self):
         # Default rate is the ratio of defaulted loans to total loans
@@ -126,6 +179,12 @@ class LoanMarketEnvironment:
         self.cycle_duration += 1
         if self.cycle_duration >= self.max_cycle_duration:
             self.economic_cycle = np.random.choice([-1, 0, 1])
+            # if self.time_step <= 240:
+            #     self.economic_cycle = 0
+            # elif 241 <= self.time_step <= 480:
+            #     self.economic_cycle = -1
+            # elif self.time_step >= 481:
+            #     self.economic_cycle = 1
             self.cycle_duration = 0
 
     def apply_economic_effects(self):
@@ -176,7 +235,10 @@ class LoanMarketEnvironment:
                             if borrower.apply_for_loan(loan) and lender.grant_loan(loan):
                                 self.loans.append(loan)
                                 borrower_rewards[borrower.id] += self.calculate_borrower_reward(loan)
+                                print(f"lender_rewards:{self.calculate_lender_reward(loan)}")
+                                # print(f"lender_rewards:{lender_rewards[lender.id]}")
                                 lender_rewards[lender.id] += self.calculate_lender_reward(loan)
+                                
                                 self.state['should_interest_rate_increase'] = 1
                                 print(f"Loan created: Lender {lender.id}, Borrower {borrower.id}, "
                                       f"Amount: {loan_amount:.2f}, Interest: {interest_rate:.2%}, Term: {term}")
@@ -196,6 +258,8 @@ class LoanMarketEnvironment:
                 interest_portion = payment * loan.interest_rate / 12
                 borrower_rewards[loan.borrower.id] += payment * 0.05
                 lender_rewards[loan.lender.id] += interest_portion * 0.1
+                if self.use_credit_history:
+                    loan.borrower.update_credit_length(1)
             elif loan.is_active == False and loan.is_defaulted() == False:
                 borrower_rewards[loan.borrower.id] += self.calculate_borrower_reward(loan) * 2
                 lender_rewards[loan.lender.id] += self.calculate_lender_reward(loan) * 2
@@ -240,6 +304,7 @@ class LoanMarketEnvironment:
         self.time_step = 0
         self.economic_cycle = 0
         self.cycle_duration = 0
+        self.use_credit_history = self.use_credit_history
         
         for borrower in self.borrowers:
             borrower.reset()
@@ -262,6 +327,8 @@ class LoanMarketEnvironment:
         print(f"Market Liquidity: {self.state['market_liquidity']:.2f}")
         print(f"Total Lender Capital: ${sum(lender.capital for lender in self.lenders):.2f}")
         print(f"Total Borrower Debt: ${sum(borrower.debt for borrower in self.borrowers):.2f}")
+        if self.use_credit_history:
+            print(f"Average Credit History: {self.state['avg_credit_history']}")
         print("=" * 50)
 
     def update_best_values(self):
