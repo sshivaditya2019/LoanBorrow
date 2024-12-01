@@ -56,7 +56,7 @@ class Lender:
         self.min_loan_amount = 10000
         self.max_loan_amount = 100000
         self.min_interest_rate = 0.03
-        self.max_interest_rate = 0.075
+        self.max_interest_rate = 0.12
         # Track performance metrics
         self.default_history = []
         self.profit_history = []
@@ -70,7 +70,7 @@ class Lender:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # Reduced state space to most relevant features
         self.input_size = 7 if not self.use_credit_history else 8 # Simplified state representation
-        self.output_size = 20 # 20 loan products
+        self.output_size = 100 # Action space with 100 possible actions
         self.policy_net = DQN(self.input_size, self.output_size).to(self.device) # DQN model for the lender
         self.target_net = DQN(self.input_size, self.output_size).to(self.device) # Target DQN model for the lender
         self.target_net.load_state_dict(self.policy_net.state_dict())

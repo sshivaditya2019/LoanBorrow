@@ -9,6 +9,9 @@ from borrower import Borrower
 from environment import LoanMarketEnvironment
 from gui import Visualization
 
+import matplotlib.pyplot as plt
+plt.rcParams.update({'font.size': 22})
+
 def calculate_moving_average(data, window=30):
     """Calculate moving average with the specified window"""
     weights = np.ones(window) / window
@@ -47,8 +50,11 @@ def plot_loan_metrics(history):
     plt.title('Interest Rate vs Loan Decisions (30-period Moving Average)')
     plt.grid(True)
     
+    # Adjust layout to reduce borders
+    plt.tight_layout(pad=0.5)
+    
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    plt.savefig(f'results/loan_metrics_{timestamp}.png')
+    plt.savefig(f'results/loan_metrics_{timestamp}.png', bbox_inches='tight', pad_inches=0.1)
     plt.close()
 
 def plot_rewards(history):
@@ -70,8 +76,11 @@ def plot_rewards(history):
     plt.legend()
     plt.grid(True)
     
+    # Adjust layout to reduce borders
+    plt.tight_layout(pad=0.5)
+    
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    plt.savefig(f'results/rewards_{timestamp}.png')
+    plt.savefig(f'results/rewards_{timestamp}.png', bbox_inches='tight', pad_inches=0.1)
     plt.close()
 
 def plot_single_metric(time_steps, data, ma_data, economic_cycle, title, y_label, color, timestamp, ma_start, window):
@@ -97,7 +106,11 @@ def plot_single_metric(time_steps, data, ma_data, economic_cycle, title, y_label
     
     plt.title(f'{title} vs Economic Cycle')
     ax.grid(True)
-    plt.savefig(f'results/{title.lower().replace(" ", "_")}_{timestamp}.png')
+    
+    # Adjust layout to reduce borders
+    plt.tight_layout(pad=0.5)
+    
+    plt.savefig(f'results/{title.lower().replace(" ", "_")}_{timestamp}.png', bbox_inches='tight', pad_inches=0.1)
     plt.close()
 
 def plot_results(history, separate_graphs=False):
@@ -236,8 +249,9 @@ def plot_results(history, separate_graphs=False):
         lines2, labels2 = ax6_twin.get_legend_handles_labels()
         ax6.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
 
-        plt.tight_layout()
-        plt.savefig(f'results/simulation_results_{timestamp}.png')
+        # Adjust layout to reduce borders
+        plt.tight_layout(pad=0.5)
+        plt.savefig(f'results/simulation_results_{timestamp}.png', bbox_inches='tight', pad_inches=0.1)
         plt.close()
 
     # Plot additional visualizations
@@ -274,7 +288,7 @@ def load_best_values():
             pass
     return None
 
-def main(use_best_values=False, num_lenders=5, num_borrowers=20, num_episodes=3, max_time_steps=720, separate_graphs=False, use_credit_history=False):
+def main(use_best_values=False, num_lenders=5, num_borrowers=20, num_episodes=1, max_time_steps=720, separate_graphs=False):
     """Main simulation function"""
     # Create results directory
     os.makedirs('results', exist_ok=True)
@@ -284,17 +298,17 @@ def main(use_best_values=False, num_lenders=5, num_borrowers=20, num_episodes=3,
 
     # Initialize agents
     lenders = [
-        Lender(i, initial_capital=1_000_000, risk_tolerance=np.random.uniform(0.3, 0.7), best_values=best_values, use_credit_history=use_credit_history)
+        Lender(i, initial_capital=1_000_000, risk_tolerance=np.random.uniform(0.3, 0.7), best_values=best_values)
         for i in range(num_lenders)
     ]
 
     borrowers = [
-        Borrower(i, best_values=best_values, use_credit_history=use_credit_history)
+        Borrower(i, best_values=best_values)
         for i in range(num_borrowers)
     ]
 
     # Initialize environment and visualization
-    env = LoanMarketEnvironment(lenders, borrowers, best_values=best_values, use_credit_history=use_credit_history)
+    env = LoanMarketEnvironment(lenders, borrowers, best_values=best_values)
     vis = Visualization()
 
     # Initialize history tracking
@@ -384,7 +398,6 @@ if __name__ == "__main__":
     parser.add_argument('--num_episodes', type=int, default=1, help='Number of episodes')
     parser.add_argument('--max_time_steps', type=int, default=720, help='Maximum time steps per episode')
     parser.add_argument('--separate_graphs', action='store_true', help='Save each graph metric as a separate image')
-    parser.add_argument('--use_credit_history', action='store_true', help='Use credit history for borrowers')
     
     args = parser.parse_args()
     
@@ -393,5 +406,4 @@ if __name__ == "__main__":
          num_borrowers=args.num_borrowers,
          num_episodes=args.num_episodes,
          max_time_steps=args.max_time_steps,
-         separate_graphs=args.separate_graphs,
-         use_credit_history=args.use_credit_history)
+         separate_graphs=args.separate_graphs)
