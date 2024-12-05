@@ -98,6 +98,8 @@ class Borrower:
         self.eps_end = 0.01  # Minimum value of epsilon
         self.eps_decay = 2000  # Decay rate for epsilon
         self.steps_done = 0
+
+        self.employment_stability = np.random.uniform(0.5, 1.0)
         
         # Track performance metrics
         self.avg_reward = 0
@@ -219,6 +221,9 @@ class Borrower:
                 market_state['economic_cycle'] >= -0.5  # Accept loans in moderately negative to positive conditions
             )
 
+        stability_factor = self.employment_stability * 0.2
+        decision = decision and (stability_factor > 0.7 or (affordability > 0.5 and risk_factor > 0.5))
+        
         return decision
 
     def calculate_affordability(self, loan):

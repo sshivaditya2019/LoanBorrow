@@ -225,7 +225,9 @@ class Visualization:
             ("Active Loans", f"{env.state['num_loans']}"),
             ("Rejected Loans", f"{env.state['num_rejected_loans']}"),
             ("Rejection Rate", f"{rejection_rate:.2%}"),
-            ("Avg Interest Rate", f"{env.state['avg_interest_rate']:.2%}")
+            ("Avg Interest Rate", f"{env.state['avg_interest_rate']:.2%}"),
+            ("Stock Index", f"{env.stock_index:.2f}"),
+            ("Employment Stability", f"{env.state['employment_stability']:.2f}"),
         ]
         
         y = 220
