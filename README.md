@@ -1,4 +1,4 @@
-# Loan Borrow Marketplace Simulation
+# Equiloan Marketplace Simulation
 
 ## Description
 The objective of this project is to create a loan marketplace consisting of borrowers and lenders. As expected, the lenders and the borrowers have competing interests. The lenders are interested in maximizing returns on their loans while minimizing losses from defaults. The borrowers are
