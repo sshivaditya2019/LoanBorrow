@@ -12,6 +12,8 @@ class LoanMarketEnvironment:
         self.cycle_duration = 0  # Duration of the current economic cycle
         self.max_cycle_duration = 60  # 5 years
         self.min_interest_rate = 0.03  # 3% minimum interest rate
+        self.stock_index = np.random.normal(1000, 50) 
+        self.employment_stability = np.random.uniform(0.5, 1.0)
         self.use_credit_history = use_credit_history
         self.state = self.get_state()
         self.best_values = best_values  # Store the best values for each feature
@@ -137,6 +139,8 @@ class LoanMarketEnvironment:
             'market_liquidity': self.get_market_liquidity(),
             'economic_cycle': self.economic_cycle,
             'time_step': self.time_step,
+            'stock_index': self.stock_index,
+            'employment_stability': self.employment_stability,
             'should_interest_rate_increase': 1
         }
         else:
@@ -151,6 +155,8 @@ class LoanMarketEnvironment:
                 'market_liquidity': self.get_market_liquidity(),
                 'economic_cycle': self.economic_cycle,
                 'time_step': self.time_step,
+                'stock_index': self.stock_index,
+                'employment_stability': self.employment_stability,
                 'should_interest_rate_increase': 1
             }
 

@@ -152,6 +152,11 @@ class Lender:
         loan_amount = ((action_item // 10) % 5) / 4 * (self.max_loan_amount - self.min_loan_amount) + self.min_loan_amount
         term = ((action_item // 50) % 3) * 12 + 12
 
+        #Using stock indices to influence loan interest rates
+        economic_amplifier = 1 + 0.5 * state['economic_cycle']
+        stock_influence = (state['stock_index'] - 1000) * 0.0001 * economic_amplifier
+        interest_rate += stock_influence
+        
         return interest_rate, loan_amount, term
 
     def assess_loan(self, loan, borrower):
