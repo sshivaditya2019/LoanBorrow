@@ -12,8 +12,8 @@ the Deep Q-Network (DQN) models.
 ## Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/sshivaditya2019/LoanBorrow.git
-   cd LoanBorrow
+   git clone https://github.com/sshivaditya2019/Equiloan.git
+   cd Equiloan
    ```
 2. Install the dependencies:
    ```bash
