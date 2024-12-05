@@ -57,26 +57,21 @@ class Lender:
         self.max_loan_amount = 100000
         self.min_interest_rate = 0.03
         self.max_interest_rate = 0.12
-        # Track performance metrics
         self.default_history = []
         self.profit_history = []
         self.use_credit_history = use_credit_history
-
         if best_values and 'optimal_interest_rate' in best_values:
             self.optimal_interest_rate = best_values['optimal_interest_rate']
         else:
             self.optimal_interest_rate = None
-
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # Reduced state space to most relevant features
-        self.input_size = 7 if not self.use_credit_history else 8 # Simplified state representation
+        self.input_size = 7 if not self.use_credit_history else 8
         self.output_size = 100 # Action space with 100 possible actions
         self.policy_net = DQN(self.input_size, self.output_size).to(self.device) # DQN model for the lender
         self.target_net = DQN(self.input_size, self.output_size).to(self.device) # Target DQN model for the lender
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
 
-        # Optimized hyperparameters for better learning
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.0001)
         self.memory = ReplayMemory(50000)
         self.batch_size = 128
@@ -86,12 +81,10 @@ class Lender:
         self.eps_decay = 2000  # Decay rate for epsilon
         self.steps_done = 0
         
-        # Track metrics for adaptive learning
         self.avg_reward = 0
         self.reward_history = deque(maxlen=100)
 
     def get_default_rate(self):
-        # Calculate rolling default rate from history
         if not self.default_history:
             return 0
         return sum(self.default_history[-100:]) / len(self.default_history[-100:])
@@ -103,7 +96,6 @@ class Lender:
         return sum(self.profit_history[-100:]) / len(self.profit_history[-100:])
 
     def state_to_tensor(self, state):
-        # Simplified and normalized state representation for better learning
         # Each feature is carefully selected and normalized to [0,1] range
         if self.use_credit_history:
             return torch.tensor([
@@ -143,14 +135,12 @@ class Lender:
             action = torch.tensor([[random.randrange(self.output_size)]], device=self.device, dtype=torch.long)
 
         action_item = action.item()
-        
-        # Enhanced action mapping with economic considerations
         base_rate = (action_item % 10) / 9 * (self.max_interest_rate - self.min_interest_rate) + self.min_interest_rate
         market_adjustment = (state['default_rate'] - 0.05) * 0.5
         liquidity_adjustment = (1 - state['market_liquidity']) * 0.05
         economic_adjustment = state['economic_cycle'] * 0.01
         
-        random_factor = np.random.normal(0, 0.005)  # Reduced noise for more stable learning
+        random_factor = np.random.normal(0, 0.005)
         
         if self.optimal_interest_rate is not None:
             interest_rate = max(self.min_interest_rate, min(self.max_interest_rate, 
@@ -165,7 +155,6 @@ class Lender:
         return interest_rate, loan_amount, term
 
     def assess_loan(self, loan, borrower):
-        # Enhanced risk assessment with historical performance
         credit_score_factor = (borrower.credit_score - 300) / 550
         dti_factor = 1 - borrower.debt_to_income_ratio()
         loan_amount_factor = 1 - (loan.amount / self.capital)
@@ -271,7 +260,6 @@ class Lender:
         self.capital = self.initial_capital
         self.loans = []
         self.risk_tolerance = np.random.uniform(0.1, 0.9)
-        # Reset performance metrics
         self.default_history = []
         self.profit_history = []
         self.reward_history.clear()

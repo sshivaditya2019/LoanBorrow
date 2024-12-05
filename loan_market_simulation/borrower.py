@@ -39,14 +39,12 @@ future rewards.
 class DQN(nn.Module):
     def __init__(self, input_size, output_size):
         super(DQN, self).__init__()
-        # Enhanced architecture with layer normalization
         self.fc1 = nn.Linear(input_size, 128)
         self.ln1 = nn.LayerNorm(128)
         self.fc2 = nn.Linear(128, 128)
         self.ln2 = nn.LayerNorm(128)
         self.fc3 = nn.Linear(128, output_size)
         
-        # Xavier initialization for better gradient flow (Graident Exploding/Vanishing)
         nn.init.xavier_uniform_(self.fc1.weight)
         nn.init.xavier_uniform_(self.fc2.weight)
         nn.init.xavier_uniform_(self.fc3.weight)
@@ -76,7 +74,6 @@ class Borrower:
         self.financial_literacy = np.random.uniform(0.5, 0.9)
         self.annual_income = self.income
         
-        # Track loan history for better decision making
         self.loan_history = []  # Track past loan performance
         self.payment_history = []  # Track payment success/failure
 
@@ -89,7 +86,6 @@ class Borrower:
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
 
-        # Optimized learning parameters
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.0001)
         self.memory = ReplayMemory(10000)
         self.batch_size = 256

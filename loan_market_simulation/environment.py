@@ -6,7 +6,7 @@ class LoanMarketEnvironment:
         self.lenders = lenders
         self.borrowers = borrowers
         self.loans = []
-        self.rejected_loans = []  # Track rejected loans
+        self.rejected_loans = []
         self.time_step = 0
         self.economic_cycle = 0  # 0: neutral, 1: boom, -1: recession
         self.cycle_duration = 0  # Duration of the current economic cycle

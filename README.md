@@ -1,7 +1,13 @@
 # Loan Borrow Marketplace Simulation
 
 ## Description
-A Loan Borrow Marketplace simulation where agents (lenders and borrowers) interact with each other to procure loans at better rates. Lenders try to offer safer loans to borrowers while maximizing their returns. The simulation uses reinforcement learning to train agents to make optimal decisions in a dynamic economic environment.
+The objective of this project is to create a loan marketplace consisting of borrowers and lenders. As expected, the lenders and the borrowers have competing interests. The lenders are interested in maximizing returns on their loans while minimizing losses from defaults. The borrowers are
+interested in lowest interest rates and maximizing success rates of loan repayment.
+
+Eventually, the expected result is to see that this marketplace becomes economically stable over time. The default rates should be low and the credit scores should be average
+(i.e.: 600-700 range).
+To model the loan marketplace environment, a Deep Reinforcement Learning (DRL) approach was taken. The actions that the borrowers and lenders take are modeled using
+the Deep Q-Network (DQN) models.
 
 ## Installation
 1. Clone the repository:
@@ -41,41 +47,11 @@ There are two ways to run the simulation:
   - Total lender capital
   - Total borrower debt
 
-## Key Features
-- **Reinforcement Learning**: Agents learn optimal strategies through interaction with the environment.
-- **Best Values Tracking**: The simulation tracks and saves the best values achieved for various metrics across multiple runs.
-- **Improved Agent Initialization**: Lenders and borrowers can be initialized with best values from previous runs, allowing for better starting conditions.
-- **Dynamic Interest Rates**: Lenders adjust their interest rates based on market conditions, default rates, and liquidity.
-- **Enhanced Economic Effects**: The simulation applies realistic economic effects on borrowers' income and credit scores during different economic cycles.
-- **Visualization**: Real-time visualization of the marketplace using Pygame.
-
-## Sample Results
-Results may vary depending on the simulation parameters and whether best values are used. Here's an example of results from a simulation run:
-
-### Initial State
-- Average credit score: 526.25
-- Average income: $73,064.93
-- Average debt: $42,865.18
-- Number of active loans: 9
-- Default rate: 0.00%
-- Average interest rate: 8.33%
-- Market liquidity: 1.00
-- Total lender capital: $4,991,000.00
-- Total borrower debt: $857,303.69
-
-### Final State
-- Average credit score: 551.50
-- Average income: $72,559.63
-- Average debt: $42,959.88
-- Number of active loans: 21
-- Default rate: 0.00%
-- Average interest rate: 6.79%
-- Market liquidity: 1.00
-- Total lender capital: $4,979,000.00
-- Total borrower debt: $859,197.66
-
-## Inference
-- The average credit score increased, indicating that borrowers learned to manage their debt better.
-- More loans were issued, suggesting increased market liquidity and borrower access to credit.
-- The average interest rate decreased, implying a more competitive lending market benefiting borrowers.
+## Document Overview
+- `loan_market_simulation/`:
+  - `main.py`: Main script to run the simulation.
+  - `environment.py`: Environment class for the loan marketplace.
+  - `lender.py`: Lender agent class.
+  - `borrower.py`: Borrower agent class.
+  - `gui.py`: GUI class to visualize the simulation.
 

@@ -45,7 +45,7 @@ class Visualization:
         self.history_length = 100
         self.metric_history = {
             'avg_interest_rate': [],
-            'rejection_rate': []  # Add rejection rate tracking
+            'rejection_rate': [] 
         }
         
         # Mini-chart dimensions
@@ -65,38 +65,28 @@ class Visualization:
     def draw_agent(self, pos, radius, color, highlight=False, selected=False):
         """Draw an agent with anti-aliasing and effects"""
         x, y = pos
-        # Draw shadow
         gfxdraw.aacircle(self.screen, x+2, y+2, radius, (100, 100, 100))
         gfxdraw.filled_circle(self.screen, x+2, y+2, radius, (100, 100, 100))
         
-        # Draw main circle with anti-aliasing
         gfxdraw.aacircle(self.screen, x, y, radius, color)
         gfxdraw.filled_circle(self.screen, x, y, radius, color)
         
         if highlight or selected:
-            # Draw highlight ring
             gfxdraw.aacircle(self.screen, x, y, radius+2, self.colors['highlight'])
             if selected:
                 gfxdraw.aacircle(self.screen, x, y, radius+3, self.colors['highlight'])
 
     def draw_lender(self, lender, x, y):
-        """Draw lender with enhanced visuals"""
         is_selected = self.selected_agent == ('lender', lender.id)
         is_hovered = self.hover_agent == ('lender', lender.id)
-        
-        # Calculate size based on capital
         base_size = 10
         capital_factor = min(2.0, max(0.5, lender.capital / 1_000_000))
-        radius = int(base_size * capital_factor)
-        
+        radius = int(base_size * capital_factor)        
         self.draw_agent((x, y), radius, self.colors['lender'], is_hovered, is_selected)
-        
-        # Draw lender info
         text = self.stats_font.render(f"L{lender.id}", True, self.colors['text'])
         self.screen.blit(text, (x + 15, y - 20))
         text = self.detail_font.render(f"${lender.capital:,.0f}", True, self.colors['text'])
         self.screen.blit(text, (x + 15, y))
-        
         if is_selected or is_hovered:
             self.draw_lender_details(lender, x, y)
 
@@ -104,20 +94,14 @@ class Visualization:
         """Draw borrower with enhanced visuals"""
         is_selected = self.selected_agent == ('borrower', borrower.id)
         is_hovered = self.hover_agent == ('borrower', borrower.id)
-        
-        # Calculate size based on credit score
         base_size = 10
         credit_factor = min(2.0, max(0.5, borrower.credit_score / 700))
-        radius = int(base_size * credit_factor)
-        
+        radius = int(base_size * credit_factor)     
         self.draw_agent((x, y), radius, self.colors['borrower'], is_hovered, is_selected)
-        
-        # Draw borrower info
         text = self.stats_font.render(f"B{borrower.id}", True, self.colors['text'])
         self.screen.blit(text, (x + 15, y - 20))
         text = self.detail_font.render(f"${borrower.debt:,.0f}", True, self.colors['text'])
         self.screen.blit(text, (x + 15, y))
-        
         if is_selected or is_hovered:
             self.draw_borrower_details(borrower, x, y)
 
@@ -128,7 +112,6 @@ class Visualization:
             
             if is_rejected:
                 color = self.colors['loan_rejected']
-                # Draw rejected loan as dashed line
                 dash_length = 5
                 dx = end_pos[0] - start_pos[0]
                 dy = end_pos[1] - start_pos[1]
@@ -143,7 +126,6 @@ class Visualization:
                               start_pos[1] + dy * end_fraction)
                     pygame.draw.line(self.screen, color, dash_start, dash_end, 1)
             else:
-                # Determine loan color based on risk
                 risk_score = loan.risk_score()
                 if risk_score < 0.3:
                     color = self.colors['loan_active']
@@ -151,8 +133,6 @@ class Visualization:
                     color = self.colors['loan_risky']
                 else:
                     color = self.colors['loan_default']
-                
-                # Draw loan line with thickness based on amount
                 thickness = max(1, min(5, int(loan.amount / 20000)))
                 pygame.draw.line(self.screen, color, start_pos, end_pos, thickness)
 
