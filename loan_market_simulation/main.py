@@ -288,7 +288,7 @@ def load_best_values():
             pass
     return None
 
-def main(use_best_values=False, num_lenders=5, num_borrowers=20, num_episodes=1, max_time_steps=720, separate_graphs=False):
+def main(use_best_values=False, num_lenders=5, num_borrowers=20, num_episodes=3, separate_graphs=False, max_time_steps=720, use_credit_history=False):
     """Main simulation function"""
     # Create results directory
     os.makedirs('results', exist_ok=True)
@@ -298,17 +298,17 @@ def main(use_best_values=False, num_lenders=5, num_borrowers=20, num_episodes=1,
 
     # Initialize agents
     lenders = [
-        Lender(i, initial_capital=1_000_000, risk_tolerance=np.random.uniform(0.3, 0.7), best_values=best_values)
+        Lender(i, initial_capital=1_000_000, risk_tolerance=np.random.uniform(0.3, 0.7), best_values=best_values, use_credit_history=use_credit_history)
         for i in range(num_lenders)
     ]
 
     borrowers = [
-        Borrower(i, best_values=best_values)
+        Borrower(i, best_values=best_values, use_credit_history=use_credit_history)
         for i in range(num_borrowers)
     ]
 
     # Initialize environment and visualization
-    env = LoanMarketEnvironment(lenders, borrowers, best_values=best_values)
+    env = LoanMarketEnvironment(lenders, borrowers, best_values=best_values, use_credit_history=use_credit_history)
     vis = Visualization()
 
     # Initialize history tracking
@@ -398,6 +398,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_episodes', type=int, default=1, help='Number of episodes')
     parser.add_argument('--max_time_steps', type=int, default=720, help='Maximum time steps per episode')
     parser.add_argument('--separate_graphs', action='store_true', help='Save each graph metric as a separate image')
+    parser.add_argument('--use_credit_history', action='store_true', help='Use credit history for borrowers')
     
     args = parser.parse_args()
     
@@ -406,4 +407,5 @@ if __name__ == "__main__":
          num_borrowers=args.num_borrowers,
          num_episodes=args.num_episodes,
          max_time_steps=args.max_time_steps,
-         separate_graphs=args.separate_graphs)
+         separate_graphs=args.separate_graphs,
+         use_credit_history=args.use_credit_history)
